@@ -1,0 +1,89 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug xv6 Kernel",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/kernel/kernel",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/homebrew/bin/riscv64-elf-gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "description": "Set architecture",
+                    "text": "set arch riscv:rv64",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-xv6",
+            "postDebugTask": "kill-qemu",
+            "logging": {
+                "engineLogging": true
+            }
+        },
+        {
+            "name": "Debug xv6 (Manual QEMU)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/kernel/kernel",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/homebrew/bin/riscv64-elf-gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "description": "Set architecture",
+                    "text": "set arch riscv:rv64",
+                    "ignoreFailures": true
+                }
+            ],
+            "logging": {
+                "engineLogging": true
+            }
+        },
+        {
+            "name": "Debug xv6 from main()",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/kernel/kernel",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/homebrew/bin/riscv64-elf-gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "description": "Set architecture",
+                    "text": "set arch riscv:rv64",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Break at main",
+                    "text": "break main",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Continue to main",
+                    "text": "continue",
+                    "ignoreFailures": false
+                }
+            ],
+            "logging": {
+                "engineLogging": false
+            }
+        }
+    ]
+}

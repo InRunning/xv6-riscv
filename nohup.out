@@ -1,0 +1,6 @@
+WARNING: Image format was not specified for '/tmp/qemu-xv6.log' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+2025-09-30 10:49:50.449 qemu-system-riscv64[84347:662052428] +[IMKClient subclass]: chose IMKClient_Modern
+2025-09-30 10:49:50.449 qemu-system-riscv64[84347:662052428] +[IMKInputSession subclass]: chose IMKInputSession_Modern
+qemu-system-riscv64: QEMU: Terminated via GDBstub

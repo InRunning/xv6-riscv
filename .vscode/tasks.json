@@ -1,0 +1,155 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-xv6",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "pkill -9 qemu-system-riscv64 2>/dev/null || true; make kernel/kernel fs.img && nohup /opt/homebrew/bin/qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -s -S </dev/null >/tmp/qemu-xv6.log 2>&1 & disown; sleep 2 && echo 'QEMU started successfully on port 1234'"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "close": false
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "isBackground": false
+        },
+        {
+            "label": "build-kernel-only",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "kernel/kernel"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "build-fs-image",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "fs.img"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "kill-qemu",
+            "type": "shell",
+            "command": "pkill",
+            "args": [
+                "-9",
+                "qemu-system-riscv64"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "echo": false,
+                "reveal": "never",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "run-qemu",
+            "type": "shell",
+            "command": "/opt/homebrew/bin/qemu-system-riscv64",
+            "args": [
+                "-machine", "virt",
+                "-bios", "none",
+                "-kernel", "kernel/kernel",
+                "-m", "128M",
+                "-smp", "3",
+                "-nographic",
+                "-global", "virtio-mmio.force-legacy=false",
+                "-drive", "file=fs.img,if=none,format=raw,id=x0",
+                "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "isBackground": false
+        },
+        {
+            "label": "run-qemu-debug",
+            "type": "shell",
+            "command": "/opt/homebrew/bin/qemu-system-riscv64",
+            "args": [
+                "-machine", "virt",
+                "-bios", "none",
+                "-kernel", "kernel/kernel",
+                "-m", "128M",
+                "-smp", "3",
+                "-global", "virtio-mmio.force-legacy=false",
+                "-drive", "file=fs.img,if=none,format=raw,id=x0",
+                "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+                "-s",
+                "-S"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "isBackground": true
+        }
+    ]
+}

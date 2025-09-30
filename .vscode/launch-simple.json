@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug xv6 (简化版)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/kernel/kernel",
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/homebrew/bin/riscv64-elf-gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "text": "set pagination off"
+                },
+                {
+                    "text": "set arch riscv:rv64"
+                }
+            ],
+            "preLaunchTask": "build-xv6"
+        }
+    ]
+}

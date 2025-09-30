@@ -1,0 +1,39 @@
+{
+    "configurations": [
+        {
+            "name": "xv6-riscv",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/kernel"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/homebrew/bin/riscv64-elf-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerArgs": [
+                "-Wall",
+                "-Werror",
+                "-O",
+                "-fno-omit-frame-pointer",
+                "-ggdb",
+                "-gdwarf-2",
+                "-mcmodel=medany",
+                "-ffreestanding",
+                "-fno-common",
+                "-nostdlib",
+                "-I."
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${workspaceFolder}/kernel",
+                    "${workspaceFolder}/user"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            }
+        }
+    ],
+    "version": 4
+}
