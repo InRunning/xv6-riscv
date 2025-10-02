@@ -1,7 +1,6 @@
-// Physical memory allocator, for user processes,
-// kernel stacks, page-table pages,
-// and pipe buffers. Allocates whole 4096-byte pages.
-
+// ====================================================================
+// 1. INCLUDES & DEFINITIONS
+// ====================================================================
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -9,74 +8,113 @@
 #include "riscv.h"
 #include "defs.h"
 
+// --------------------------------------------------------------------
+// 物理内存分配器
+// --------------------------------------------------------------------
+// 用于为用户进程、内核栈、页表页和管道缓冲区分配物理内存。
+// 分配的单位是完整的4096字节的页面。
+// --------------------------------------------------------------------
+
 void freerange(void *pa_start, void *pa_end);
 
-extern char end[]; // first address after kernel.
-                   // defined by kernel.ld.
+extern char end[]; // 内核结束后的第一个地址，由 kernel.ld 定义。
 
+// 空闲物理页链表中的一个节点
 struct run {
   struct run *next;
 };
 
+// 内核内存管理器状态
 struct {
-  struct spinlock lock;
-  struct run *freelist;
+  struct spinlock lock;   // 保护空闲链表的锁
+  struct run *freelist; // 空闲物理页链表的头指针
 } kmem;
 
+// ====================================================================
+// 2. FUNCTIONS
+// ====================================================================
+
+// --------------------------------------------------------------------
+// kinit
+// --------------------------------------------------------------------
+// 初始化内核物理内存分配器。
+// --------------------------------------------------------------------
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  // 将从内核结束到物理内存顶部的所有内存都加入到空闲链表中
   freerange(end, (void*)PHYSTOP);
 }
 
+// --------------------------------------------------------------------
+// freerange
+// --------------------------------------------------------------------
+// 将一段物理地址范围内的所有页面都加入到空闲链表中。
+// @param pa_start: 范围的起始物理地址。
+// @param pa_end: 范围的结束物理地址。
+// --------------------------------------------------------------------
 void
 freerange(void *pa_start, void *pa_end)
 {
   char *p;
+  // 将起始地址向上对齐到页面边界
   p = (char*)PGROUNDUP((uint64)pa_start);
+  // 逐页将内存加入空闲链表
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
 }
 
-// Free the page of physical memory pointed at by pa,
-// which normally should have been returned by a
-// call to kalloc().  (The exception is when
-// initializing the allocator; see kinit above.)
+// --------------------------------------------------------------------
+// kfree
+// --------------------------------------------------------------------
+// 释放一个物理内存页面。
+// @param pa: 要释放的页面的物理地址。这个地址通常是由 kalloc() 返回的。
+// --------------------------------------------------------------------
 void
 kfree(void *pa)
 {
   struct run *r;
 
+  // 检查地址的有效性：必须是页对齐的，并且在内核结束地址和物理内存顶部之间。
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
+  // 将页面内容填充为垃圾数据，以帮助捕获悬空引用（use-after-free）的bug。
   memset(pa, 1, PGSIZE);
 
+  // 将页面转换为空闲链表节点
   r = (struct run*)pa;
 
+  // 加锁，保护对空闲链表的访问
   acquire(&kmem.lock);
+  // 将页面插入到空闲链表的头部
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
 }
 
-// Allocate one 4096-byte page of physical memory.
-// Returns a pointer that the kernel can use.
-// Returns 0 if the memory cannot be allocated.
+// --------------------------------------------------------------------
+// kalloc
+// --------------------------------------------------------------------
+// 分配一个4096字节的物理内存页面。
+// @return: 成功则返回一个内核可以使用的指针，失败（内存不足）则返回0。
+// --------------------------------------------------------------------
 void *
 kalloc(void)
 {
   struct run *r;
 
+  // 加锁，保护对空闲链表的访问
   acquire(&kmem.lock);
+  // 从空闲链表头部取出一个页面
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
   if(r)
-    memset((char*)r, 5, PGSIZE); // fill with junk
+    // 将页面内容填充为垃圾数据，帮助捕获未初始化就使用的bug。
+    memset((char*)r, 5, PGSIZE);
   return (void*)r;
 }

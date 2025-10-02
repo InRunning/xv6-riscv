@@ -1,9 +1,22 @@
-// Saved registers for kernel context switches.
-struct context {
-  uint64 ra;
-  uint64 sp;
+// ====================================================================
+// 1. DATA STRUCTURES
+// ====================================================================
 
-  // callee-saved
+// --------------------------------------------------------------------
+// struct context
+// --------------------------------------------------------------------
+// 内核上下文切换时保存的寄存器。
+// 当一个内核线程（例如一个进程或调度器）停止执行并切换到另一个线程时，
+// `swtch` 函数会保存当前线程的寄存器到这个结构体中，并从目标线程的
+// `context` 结构体中恢复寄存器。
+// --------------------------------------------------------------------
+struct context {
+  uint64 ra; // 返回地址 (Return Address)
+  uint64 sp; // 栈指针 (Stack Pointer)
+
+  // 被调用者保存的寄存器 (Callee-saved registers)
+  // 根据RISC-V调用约定，这些寄存器在函数调用中必须由被调用者保存和恢复。
+  // 因此，在上下文切换时，它们也必须被保存。
   uint64 s0;
   uint64 s1;
   uint64 s2;
@@ -18,34 +31,34 @@ struct context {
   uint64 s11;
 };
 
-// Per-CPU state.
+// --------------------------------------------------------------------
+// struct cpu
+// --------------------------------------------------------------------
+// 每个CPU核心的状态。
+// --------------------------------------------------------------------
 struct cpu {
-  struct proc *proc;          // The process running on this cpu, or null.
-  struct context context;     // swtch() here to enter scheduler().
-  int noff;                   // Depth of push_off() nesting.
-  int intena;                 // Were interrupts enabled before push_off()?
+  struct proc *proc;          // 指向当前在该CPU上运行的进程，如果没有则为null
+  struct context context;     // 调度器的上下文。`swtch` 会切换到这里来进入调度器
+  int noff;                   // `push_off()` 嵌套的深度，用于禁用/启用中断
+  int intena;                 // 在调用 `push_off()` 之前中断是否是启用的
 };
 
-extern struct cpu cpus[NCPU];
+extern struct cpu cpus[NCPU]; // CPU状态数组，每个核心一个
 
-// per-process data for the trap handling code in trampoline.S.
-// sits in a page by itself just under the trampoline page in the
-// user page table. not specially mapped in the kernel page table.
-// uservec in trampoline.S saves user registers in the trapframe,
-// then initializes registers from the trapframe's
-// kernel_sp, kernel_hartid, kernel_satp, and jumps to kernel_trap.
-// usertrapret() and userret in trampoline.S set up
-// the trapframe's kernel_*, restore user registers from the
-// trapframe, switch to the user page table, and enter user space.
-// the trapframe includes callee-saved user registers like s0-s11 because the
-// return-to-user path via usertrapret() doesn't return through
-// the entire kernel call stack.
+// --------------------------------------------------------------------
+// struct trapframe
+// --------------------------------------------------------------------
+// 每个进程在处理陷阱（trap）时需要用到的数据，由 `trampoline.S` 中的代码使用。
+// 这个结构体位于用户页表中的一个单独页面上，紧邻 trampoline 页面之下。
+// 当从用户态切换到内核态时 (`uservec`)，用户寄存器被保存在这里。
+// 当从内核态返回用户态时 (`usertrapret`)，用户寄存器从这里恢复。
+// --------------------------------------------------------------------
 struct trapframe {
-  /*   0 */ uint64 kernel_satp;   // kernel page table
-  /*   8 */ uint64 kernel_sp;     // top of process's kernel stack
-  /*  16 */ uint64 kernel_trap;   // usertrap()
-  /*  24 */ uint64 epc;           // saved user program counter
-  /*  32 */ uint64 kernel_hartid; // saved kernel tp
+  /*   0 */ uint64 kernel_satp;   // 内核页表的地址
+  /*   8 */ uint64 kernel_sp;     // 进程内核栈的栈顶地址
+  /*  16 */ uint64 kernel_trap;   // `usertrap()` 函数的地址
+  /*  24 */ uint64 epc;           // 保存的用户程序计数器 (exception program counter)
+  /*  32 */ uint64 kernel_hartid; // 保存的内核 hart id (tp 寄存器)
   /*  40 */ uint64 ra;
   /*  48 */ uint64 sp;
   /*  56 */ uint64 gp;
@@ -79,29 +92,50 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+// --------------------------------------------------------------------
+// enum procstate
+// --------------------------------------------------------------------
+// 进程的所有可能状态。
+// --------------------------------------------------------------------
+enum procstate { 
+  UNUSED,   // 未使用的进程槽
+  USED,     // 正在初始化，但还不能运行
+  SLEEPING, // 正在等待某个事件（channel）
+  RUNNABLE, // 等待被调度器选中运行
+  RUNNING,  // 正在CPU上运行
+  ZOMBIE    // 已经退出，等待父进程调用 `wait()` 来回收
+};
 
-// Per-process state
+// --------------------------------------------------------------------
+// struct proc
+// --------------------------------------------------------------------
+// 进程控制块（Process Control Block, PCB）。
+// 保存了一个进程的所有状态信息。
+// --------------------------------------------------------------------
 struct proc {
-  struct spinlock lock;
+  struct spinlock lock; // 保护该进程结构的自旋锁
 
-  // p->lock must be held when using these:
-  enum procstate state;        // Process state
-  void *chan;                  // If non-zero, sleeping on chan
-  int killed;                  // If non-zero, have been killed
-  int xstate;                  // Exit status to be returned to parent's wait
-  int pid;                     // Process ID
+  // --- 受 p->lock 保护的字段 ---
+  // 在访问或修改这些字段之前，必须先获取 p->lock
+  enum procstate state;        // 进程当前的状态
+  void *chan;                  // 如果非零，表示进程正在此 channel 上睡眠
+  int killed;                  // 如果非零，表示该进程已经被标记为杀死
+  int xstate;                  // 退出状态，父进程的 `wait()` 会获取这个值
+  int pid;                     // 进程ID
 
-  // wait_lock must be held when using this:
-  struct proc *parent;         // Parent process
+  // --- 受 wait_lock 保护的字段 ---
+  // 在访问或修改此字段之前，必须先获取 wait_lock
+  struct proc *parent;         // 父进程
 
-  // these are private to the process, so p->lock need not be held.
-  uint64 kstack;               // Virtual address of kernel stack
-  uint64 sz;                   // Size of process memory (bytes)
-  pagetable_t pagetable;       // User page table
-  struct trapframe *trapframe; // data page for trampoline.S
-  struct context context;      // swtch() here to run process
-  struct file *ofile[NOFILE];  // Open files
-  struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
+  // --- 进程私有字段 ---
+  // 这些字段是进程的内部状态，通常只在进程自己的上下文中被修改，
+  // 因此不需要 p->lock 保护（除非在特殊情况下，例如在其他进程中修改它们）。
+  uint64 kstack;               // 进程内核栈的虚拟地址
+  uint64 sz;                   // 进程用户内存的大小（字节）
+  pagetable_t pagetable;       // 用户页表的根指针
+  struct trapframe *trapframe; // 指向该进程的陷阱帧
+  struct context context;      // `swtch` 会切换到这里来运行该进程
+  struct file *ofile[NOFILE];  // 打开的文件描述符表
+  struct inode *cwd;           // 当前工作目录
+  char name;               // 进程名（用于调试）
 };

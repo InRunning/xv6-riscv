@@ -1,22 +1,22 @@
 // System call numbers
-#define SYS_fork    1
-#define SYS_exit    2
-#define SYS_wait    3
-#define SYS_pipe    4
-#define SYS_read    5
-#define SYS_kill    6
-#define SYS_exec    7
-#define SYS_fstat   8
-#define SYS_chdir   9
-#define SYS_dup    10
-#define SYS_getpid 11
-#define SYS_sbrk   12
-#define SYS_pause  13
-#define SYS_uptime 14
-#define SYS_open   15
-#define SYS_write  16
-#define SYS_mknod  17
-#define SYS_unlink 18
-#define SYS_link   19
-#define SYS_mkdir  20
-#define SYS_close  21
+#define SYS_fork    1  // 创建一个子进程
+#define SYS_exit    2  // 退出当前进程
+#define SYS_wait    3  // 等待一个子进程退出
+#define SYS_pipe    4  // 创建一个管道
+#define SYS_read    5  // 从文件读取数据
+#define SYS_kill    6  // 杀死一个进程
+#define SYS_exec    7  // 执行一个新程序
+#define SYS_fstat   8  // 获取文件状态
+#define SYS_chdir   9  // 改变当前工作目录
+#define SYS_dup    10  // 复制一个文件描述符
+#define SYS_getpid 11  // 获取当前进程ID
+#define SYS_sbrk   12  // 增加或减少进程内存
+#define SYS_pause  13  // 暂停进程，等待信号
+#define SYS_uptime 14  // 获取系统运行时间
+#define SYS_open   15  // 打开一个文件
+#define SYS_write  16  // 向文件写入数据
+#define SYS_mknod  17  // 创建一个设备文件
+#define SYS_unlink 18  // 删除一个文件
+#define SYS_link   19  // 创建一个硬链接
+#define SYS_mkdir  20  // 创建一个目录
+#define SYS_close  21  // 关闭一个文件

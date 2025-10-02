@@ -1,45 +1,79 @@
+// ====================================================================
+// 1. INCLUDES
+// ====================================================================
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
 
-volatile static int started = 0;
+// ====================================================================
+// 2. GLOBAL VARIABLES
+// ====================================================================
+volatile static int started = 0; // 标志其他CPU是否可以开始初始化
 
-// start() jumps here in supervisor mode on all CPUs.
+// ====================================================================
+// 3. MAIN FUNCTION
+// ====================================================================
+
+// --------------------------------------------------------------------
+// main
+// --------------------------------------------------------------------
+// start() 函数在所有CPU上以supervisor模式跳转到这里。
+// 这个函数是内核的入口点，负责初始化内核的各个子系统，
+// 并最终启动调度器。
+// --------------------------------------------------------------------
 void
 main()
 {
+  // ------------------------------------------------------------------
+  // 3.1. 主CPU初始化 (cpuid() == 0)
+  // ------------------------------------------------------------------
+  // 只有第一个启动的CPU（hart 0）执行主要的内核初始化。
   if(cpuid() == 0){
-    consoleinit();
-    printfinit();
+    consoleinit();      // 初始化控制台，用于打印信息
+    printfinit();       // 初始化内核的 printf 函数
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
-    kinit();         // physical page allocator
-    kvminit();       // create kernel page table
-    kvminithart();   // turn on paging
-    procinit();      // process table
-    trapinit();      // trap vectors
-    trapinithart();  // install kernel trap vector
-    plicinit();      // set up interrupt controller
-    plicinithart();  // ask PLIC for device interrupts
-    binit();         // buffer cache
-    iinit();         // inode table
-    fileinit();      // file table
-    virtio_disk_init(); // emulated hard disk
-    userinit();      // first user process
+    kinit();            // 初始化物理内存分配器
+    kvminit();          // 创建内核页表
+    kvminithart();      // 在当前hart上启用分页
+    procinit();         // 初始化进程表
+    trapinit();         // 初始化中断/异常向量
+    trapinithart();     // 为当前hart��装内核陷阱向量
+    plicinit();         // 初始化PLIC（平台级中断控制器）
+    plicinithart();     // 为当前hart配置PLIC以接收设备中断
+    binit();            // 初始化缓冲区缓存
+    iinit();            // 初始化inode缓存
+    fileinit();         // 初始化文件表
+    virtio_disk_init(); // 初始化VirtIO模拟磁盘
+    userinit();         // 创建第一个用户进程 (initcode)
+    
+    // 内存屏障，确保前面的所有写操作都对其他CPU可见
     __sync_synchronize();
-    started = 1;
-  } else {
+    started = 1;        // 设置标志，允许其他CPU继续执行
+  }
+  // ------------------------------------------------------------------
+  // 3.2. 其他CPU初始化
+  // ------------------------------------------------------------------
+  else {
+    // 其他CPU（harts > 0）等待主CPU完成初始化
     while(started == 0)
-      ;
+      ; // 自旋等待
+    
+    // 内存屏障，确保读取到 `started` 的最新值
     __sync_synchronize();
     printf("hart %d starting\n", cpuid());
-    kvminithart();    // turn on paging
-    trapinithart();   // install kernel trap vector
-    plicinithart();   // ask PLIC for device interrupts
+    kvminithart();      // 在当前hart上启用分页
+    trapinithart();     // 为当前hart安装内核陷阱向量
+    plicinithart();     // 为当前hart配置PLIC以接收设备中断
   }
 
-  scheduler();        
+  // ------------------------------------------------------------------
+  // 4. 启动调度器
+  // ------------------------------------------------------------------
+  // 所有CPU都将进入调度器循环，开始调度和执行进程。
+  // scheduler() 函数永远不会返回。
+  scheduler();
 }

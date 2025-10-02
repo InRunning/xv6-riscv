@@ -1,0 +1,5 @@
+{
+    "kernel/main.c": {
+        "description": "项目入口"
+    }
+}
