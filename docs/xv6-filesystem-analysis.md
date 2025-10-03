@@ -5,22 +5,25 @@
 ## 1. 命令解析阶段
 
 ### 1.1 Shell 解析命令
-[跳到 user/sh.c 第 160 行](./user/sh.c#160)
+
+[跳到 user/sh.c 第 160 行](../user/sh.c#160)
 Shell 主循环读取并解析命令行输入
 
-[跳到 user/sh.c 第 334 行](./user/sh.c#334)
+[跳到 user/sh.c 第 334 行](../user/sh.c#334)
 `parsecmd()` 函数解析命令字符串，将 `echo "hi" > x` 解析为：
-- 一个执行命令 (execcmd): `echo "hi"`
-- 一个重定向命令 (redircmd): 输出重定向到文件 `x`
 
-[跳到 user/sh.c 第 394 行](./user/sh.c#394)
+-   一个执行命令 (execcmd): `echo "hi"`
+-   一个重定向命令 (redircmd): 输出重定向到文件 `x`
+
+[跳到 user/sh.c 第 394 行](../user/sh.c#394)
 重定向解析中，`>` 被解析为 `O_WRONLY|O_CREATE|O_TRUNC` 模式
 
 ### 1.2 命令执行
-[跳到 user/sh.c 第 83 行](./user/sh.c#83)
+
+[跳到 user/sh.c 第 83 行](../user/sh.c#83)
 `runcmd()` 函数处理重定向命令，首先执行重定向操作
 
-[跳到 user/sh.c 第 85 行](./user/sh.c#85)
+[跳到 user/sh.c 第 85 行](../user/sh.c#85)
 关闭文件描述符 1 (标准输出)
 
 [跳到 user/sh.c 第 86 行](./user/sh.c#86)
@@ -32,6 +35,7 @@ Shell 主循环读取并解析命令行输入
 ## 2. Echo 程序执行
 
 ### 2.1 程序加载
+
 [跳到 kernel/sysfile.c 第 435 行](./kernel/sysfile.c#435)
 `sys_exec()` 系统调用加载并执行 echo 程序
 
@@ -39,6 +43,7 @@ Shell 主循环读取并解析命令行输入
 `kexec()` 函数负责加载 ELF 格式的 echo 程序到内存
 
 ### 2.2 输出数据
+
 [跳到 user/echo.c 第 11 行](./user/echo.c#11)
 echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据到文件描述符 1
 
@@ -51,6 +56,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 ## 3. 文件写入流程
 
 ### 3.1 系统调用处理
+
 [跳到 kernel/sysfile.c 第 83 行](./kernel/sysfile.c#83)
 `sys_write()` 函数处理写操作
 
@@ -58,6 +64,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 调用 `filewrite()` 函数执行实际的文件写入
 
 ### 3.2 文件写入实现
+
 [跳到 kernel/file.c 第 135 行](./kernel/file.c#135)
 `filewrite()` 函数处理文件写入，对于 inode 类型文件：
 
@@ -77,6 +84,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 结束日志事务 `end_op()`
 
 ### 3.3 Inode 写入
+
 [跳到 kernel/fs.c 第 548 行](./kernel/fs.c#548)
 `writei()` 函数负责将数据写入 inode
 
@@ -104,6 +112,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 ## 4. 日志系统处理
 
 ### 4.1 日志事务开始
+
 [跳到 kernel/log.c 第 128 行](./kernel/log.c#128)
 `begin_op()` 函数开始一个日志事务
 
@@ -117,6 +126,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 释放日志锁
 
 ### 4.2 日志写入
+
 [跳到 kernel/log.c 第 216 行](./kernel/log.c#216)
 `log_write()` 函数将修改的缓冲区添加到日志中
 
@@ -136,6 +146,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 释放日志锁
 
 ### 4.3 日志事务提交
+
 [跳到 kernel/log.c 第 148 行](./kernel/log.c#148)
 `end_op()` 函数结束日志事务
 
@@ -152,6 +163,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 调用 `commit()` 函数提交日志
 
 ### 4.4 日志提交过程
+
 [跳到 kernel/log.c 第 195 行](./kernel/log.c#195)
 `commit()` 函数执行实际的日志提交
 
@@ -170,6 +182,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 ## 5. 缓冲区管理
 
 ### 5.1 缓冲区读取
+
 [跳到 kernel/bio.c 第 117 行](./kernel/bio.c#117)
 `bread()` 函数读取磁盘块到缓冲区
 
@@ -180,6 +193,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 如果缓冲区无效，从磁盘读取数据
 
 ### 5.2 缓冲区写入
+
 [跳到 kernel/bio.c 第 131 行](./kernel/bio.c#131)
 `bwrite()` 函数将缓冲区写入磁盘
 
@@ -187,6 +201,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 调用 `virtio_disk_rw()` 执行实际的磁盘写入
 
 ### 5.3 缓冲区释放
+
 [跳到 kernel/bio.c 第 140 行](./kernel/bio.c#140)
 `brelse()` 函数释放锁定的缓冲区
 
@@ -196,6 +211,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 ## 6. 文件创建过程
 
 ### 6.1 文件打开
+
 [跳到 kernel/sysfile.c 第 305 行](./kernel/sysfile.c#305)
 `sys_open()` 系统调用处理文件打开
 
@@ -203,6 +219,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 如果设置了 `O_CREATE` 标志，调用 `create()` 函数创建文件
 
 ### 6.2 文件创建
+
 [跳到 kernel/sysfile.c 第 246 行](./kernel/sysfile.c#246)
 `create()` 函数创建新文件
 
@@ -219,6 +236,7 @@ echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据�
 在父目录中创建指向新 inode 的目录项
 
 ### 6.3 Inode 分配
+
 [跳到 kernel/fs.c 第 208 行](./kernel/fs.c#208)
 `ialloc()` 函数分配新的 inode
 
