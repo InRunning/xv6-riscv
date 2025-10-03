@@ -21,5 +21,9 @@
     "commentAnchors.tagHighlights.enabled": true,
     "commentAnchors.tags.displayInSidebar": true,
     "commentAnchors.tags.displayInGutter": true,
-    "commentAnchors.tags.displayInRuler": true
+    "commentAnchors.tags.displayInRuler": true,
+    "files.associations": {
+        "alert.rules": "yaml",
+        "__availability": "c"
+    }
 }

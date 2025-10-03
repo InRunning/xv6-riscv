@@ -19,5 +19,8 @@
     },
     "kernel/virtio_disk.c": {
         "description": "模拟磁盘"
+    },
+    "user/sh.c": {
+        "description": "shell"
     }
 }

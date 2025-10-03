@@ -19,6 +19,8 @@
 2. 直接路径 kernel/sysfile.c:435
 3. 直接路径 kernel/file.c:135
 
+[跳到 myfile.js 第 10 行](./user/sh.c#160)
+
 ## 代码中的链接
 
 ```c
