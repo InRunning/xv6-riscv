@@ -1,3 +1,25 @@
 {
-    "claudeCodeChat.permissions.yoloMode": true
+    "claudeCodeChat.permissions.yoloMode": true,
+    "editor.links": true,
+    "editor.colorDecorators": true,
+    "editor.gotoLocation.multipleDefinitions": "goto",
+    "editor.gotoLocation.multipleImplementations": "goto",
+    "editor.gotoLocation.multipleTypeDefinitions": "goto",
+    "commentAnchors.enable": true,
+    "commentAnchors.tags": [
+        {
+            "tag": "LINK",
+            "style": "line",
+            "cursorHover": true,
+            "highlight": true,
+            "behavior": "link",
+            "scope": "file",
+            "iconColor": "blue",
+            "highlightColor": "#3ea8ff"
+        }
+    ],
+    "commentAnchors.tagHighlights.enabled": true,
+    "commentAnchors.tags.displayInSidebar": true,
+    "commentAnchors.tags.displayInGutter": true,
+    "commentAnchors.tags.displayInRuler": true
 }
