@@ -6,7 +6,7 @@
 
 ### 1.1 Shell 解析命令
 
-[跳到 user/sh.c 第 160 行](./user/sh.c#160)
+[跳到 user/sh.c 第 160 行](../user/sh.c#160)
 Shell 主循环读取并解析命令行输入
 
 [跳到 user/sh.c 第 334 行](../user/sh.c#334)

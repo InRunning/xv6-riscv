@@ -22,5 +22,8 @@
     },
     "user/sh.c": {
         "description": "shell"
+    },
+    "kernel/start.c": {
+        "description": "初始化内核"
     }
 }
