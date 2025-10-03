@@ -7,5 +7,17 @@
     },
     "kernel/spinlock.c": {
         "description": "自旋锁"
+    },
+    "kernel/bio.c": {
+        "description": "缓存管理"
+    },
+    "kernel/param.h": {
+        "description": "常量"
+    },
+    "kernel/proc.c": {
+        "description": "进程"
+    },
+    "kernel/virtio_disk.c": {
+        "description": "模拟磁盘"
     }
 }

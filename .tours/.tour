@@ -6,6 +6,31 @@
       "file": "kernel/main.c",
       "description": "缓冲区初始化",
       "line": 47
+    },
+    {
+      "file": "kernel/bio.c",
+      "description": "将缓冲区元素插入循环链表的中间",
+      "line": 71
+    },
+    {
+      "file": "kernel/main.c",
+      "description": "初始化inode缓存",
+      "line": 48
+    },
+    {
+      "file": "kernel/fs.c",
+      "description": "获取睡眠锁，避免忙等待，睡眠锁内部有自旋锁，其实就是通过组合实现的",
+      "line": 197
+    },
+    {
+      "file": "kernel/main.c",
+      "description": "初始化文件表，里面只初始化了一个自旋锁",
+      "line": 49
+    },
+    {
+      "file": "kernel/main.c",
+      "description": "初始化VirtIO模拟磁盘",
+      "line": 50
     }
   ],
   "ref": "lqx/v1.0.0/read"

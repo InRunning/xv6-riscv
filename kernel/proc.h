@@ -137,5 +137,5 @@ struct proc {
   struct context context;      // `swtch` 会切换到这里来运行该进程
   struct file *ofile[NOFILE];  // 打开的文件描述符表
   struct inode *cwd;           // 当前工作目录
-  char name;               // 进程名（用于调试）
+  char name;       // 进程名（用于调试，最大长度为15个字符 + null 终止符）
 };

@@ -675,7 +675,11 @@ sleep(void *chan, struct spinlock *lk)
   release(lk);
 
   // 进入休眠状态
+  // p->chan 记录了进程正在等待的“通道”或事件。
+  // 当其他进程完成某个操作并调用 wakeup(chan) 时，
+  // 调度器会查找所有在相同 chan 上睡眠的进程并唤醒它们。
   p->chan = chan;
+  // 将进程状态设置为 SLEEPING，表示该进程暂时不参与 CPU 调度。
   p->state = SLEEPING;
 
   // 切换到调度器
