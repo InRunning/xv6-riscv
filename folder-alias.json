@@ -1,5 +1,11 @@
 {
     "kernel/main.c": {
         "description": "项目入口"
+    },
+    "kernel/console.c": {
+        "description": "控制台"
+    },
+    "kernel/spinlock.c": {
+        "description": "自旋锁"
     }
 }

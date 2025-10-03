@@ -11,6 +11,36 @@
       "file": "kernel/main.c",
       "description": "初始化控制台",
       "line": 34
+    },
+    {
+      "file": "kernel/console.c",
+      "description": "添加控制台的consoleRead函数",
+      "line": 250
+    },
+    {
+      "file": "kernel/console.c",
+      "description": "初始化自旋锁，注意 struct {} cons;这样写是一个匿名结构体加全局变量。",
+      "line": 235
+    },
+    {
+      "file": "kernel/console.c",
+      "description": "获取自旋锁",
+      "line": 107
+    },
+    {
+      "file": "kernel/spinlock.c",
+      "description": "关闭中断，并记录嵌套深度",
+      "line": 37
+    },
+    {
+      "file": "kernel/spinlock.c",
+      "description": "使用嵌套机制是为了可以恢复原始的中断状态",
+      "line": 148
+    },
+    {
+      "file": "kernel/console.c",
+      "description": "控制台写",
+      "line": 251
     }
   ],
   "ref": "lqx/v1.0.0/read"

@@ -23,16 +23,16 @@ volatile static int started = 0; // 标志其他CPU是否可以开始初始化
 // 这个函数是内核的入口点，负责初始化内核的各个子系统，
 // 并最终启动调度器。
 // --------------------------------------------------------------------
-void
-main()
+void main()
 {
   // ------------------------------------------------------------------
   // 3.1. 主CPU初始化 (cpuid() == 0)
   // ------------------------------------------------------------------
   // 只有第一个启动的CPU（hart 0）执行主要的内核初始化。
-  if(cpuid() == 0){
-    consoleinit();      // 初始化控制台，用于打印信息
-    printfinit();       // 初始化内核的 printf 函数
+  if (cpuid() == 0)
+  {
+    consoleinit(); // 初始化控制台，用于打印信息
+    printfinit();  // 初始化内核的 printf 函数，只是初始化了一个锁
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
@@ -49,25 +49,26 @@ main()
     fileinit();         // 初始化文件表
     virtio_disk_init(); // 初始化VirtIO模拟磁盘
     userinit();         // 创建第一个用户进程 (initcode)
-    
+
     // 内存屏障，确保前面的所有写操作都对其他CPU可见
     __sync_synchronize();
-    started = 1;        // 设置标志，允许其他CPU继续执行
+    started = 1; // 设置标志，允许其他CPU继续执行
   }
   // ------------------------------------------------------------------
   // 3.2. 其他CPU初始化
   // ------------------------------------------------------------------
-  else {
+  else
+  {
     // 其他CPU（harts > 0）等待主CPU完成初始化
-    while(started == 0)
+    while (started == 0)
       ; // 自旋等待
-    
+
     // 内存屏障，确保读取到 `started` 的最新值
     __sync_synchronize();
     printf("hart %d starting\n", cpuid());
-    kvminithart();      // 在当前hart上启用分页
-    trapinithart();     // 为当前hart安装内核陷阱向量
-    plicinithart();     // 为当前hart配置PLIC以接收设备中断
+    kvminithart();  // 在当前hart上启用分页
+    trapinithart(); // 为当前hart安装内核陷阱向量
+    plicinithart(); // 为当前hart配置PLIC以接收设备中断
   }
 
   // ------------------------------------------------------------------

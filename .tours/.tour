@@ -1,0 +1,12 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "缓冲区初始化",
+  "steps": [
+    {
+      "file": "kernel/main.c",
+      "description": "缓冲区初始化",
+      "line": 47
+    }
+  ],
+  "ref": "lqx/v1.0.0/read"
+}
