@@ -316,7 +316,7 @@ void userinit(void)
 {
   struct proc *p;
 
-  // 分���一个进程
+  // 分配一个进程
   p = allocproc();
   initproc = p;
 
@@ -326,7 +326,7 @@ void userinit(void)
   // 将进程状态设置为可运行
   p->state = RUNNABLE;
 
-  // 释放进程锁
+  // 释放进程锁，上面allocproc()会先获取进程锁，防止重复修改进程
   release(&p->lock);
 }
 
