@@ -44,21 +44,21 @@ _entry:
 -   第一个 CPU (hart 0) 执行主要初始化：
     -   初始化控制台、内存分配器、进程表等
     -   调用 [`userinit()`](../kernel/proc.c#276) 创建第一个用户进程
--   所有 CPU 最终进入 [`scheduler()`](kernel/proc.c:528) 开始调度进程
+-   所有 CPU 最终进入 [`scheduler()`](../kernel/proc.c#528) 开始调度进程
 
 ## 2. 第一个用户进程的创建
 
 ### 2.1 userinit 函数
 
-在 [`kernel/proc.c`](kernel/proc.c:276-293) 中的 `userinit()` 函数：
+在 [`kernel/proc.c`](../kernel/proc.c#276-293) 中的 `userinit()` 函数：
 
--   调用 [`allocproc()`](kernel/proc.c:160) 分配一个进程结构
+-   调用 [`allocproc()`](../kernel/proc.c#160) 分配一个进程结构
 -   设置进程的工作目录为根目录 "/"
 -   将进程状态设置为 `RUNNABLE`，使其可以被调度器调度
 
 ### 2.2 allocproc 函数
 
-在 [`kernel/proc.c`](kernel/proc.c:160-201) 中的 `allocproc()` 函数：
+在 [`kernel/proc.c`](../kernel/proc.c#160-201) 中的 `allocproc()` 函数：
 
 -   在进程表中找到一个未使用的槽位
 -   分配陷阱帧（trapframe）和用户页表
