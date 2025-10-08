@@ -35,7 +35,7 @@ _entry:
 
 -   设置 CPU 特权模式从 Machine Mode 切换到 Supervisor Mode
 -   配置中断和异常处理
--   在 [`../kernel/start.c`](../kernel/start.c#46) 通过 `mret` 指令跳转到 [`../kernel/main.c`](../kernel/main.c#26) 中的 `main()` 函数
+-   在 [`../kernel/start.c`](../kernel/start.c#48) 通过 `mret` 指令跳转到 [`../kernel/main.c`](../kernel/main.c#26) 中的 `main()` 函数
 
 ### 1.4 主内核初始化
 
@@ -43,22 +43,22 @@ _entry:
 
 -   第一个 CPU (hart 0) 执行主要初始化：
     -   初始化控制台、内存分配器、进程表等
-    -   在 [`../kernel/main.c`](../kernel/main.c#46) 调用 [`userinit()`](../kernel/proc.c#276) 创建第一个用户进程
--   所有 CPU 最终在 [`../kernel/main.c`](../kernel/main.c#68) 进入 [`scheduler()`](../kernel/proc.c#528) 开始调度进程
+    -   在 [`../kernel/main.c`](../kernel/main.c#51) 调用 [`userinit()`](../kernel/proc.c#315) 创建第一个用户进程
+-   所有 CPU 最终在 [`../kernel/main.c`](../kernel/main.c#79) 进入 [`scheduler()`](../kernel/proc.c#577) 开始调度进程
 
 ## 2. 第一个用户进程的创建
 
 ### 2.1 userinit 函数
 
-在 [`../kernel/proc.c`](../kernel/proc.c#276-293) 中的 `userinit()` 函数：
+在 [`../kernel/proc.c`](../kernel/proc.c#315-331) 中的 `userinit()` 函数：
 
--   在 [`../kernel/proc.c`](../kernel/proc.c#280) 调用 [`allocproc()`](../kernel/proc.c#160) 分配一个进程结构
+-   在 [`../kernel/proc.c`](../kernel/proc.c#320) 调用 [`allocproc()`](../kernel/proc.c#158) 分配一个进程结构
 -   设置进程的工作目录为根目录 "/"
 -   将进程状态设置为 `RUNNABLE`，使其可以被调度器调度
 
 ### 2.2 allocproc 函数
 
-在 [`../kernel/proc.c`](../kernel/proc.c#160-201) 中的 `allocproc()` 函数：
+在 [`../kernel/proc.c`](../kernel/proc.c#158-240) 中的 `allocproc()` 函数：
 
 -   在进程表中找到一个未使用的槽位
 -   分配陷阱帧（trapframe）和用户页表
@@ -77,18 +77,19 @@ _entry:
 
 ### 3.2 forkret 函数
 
-在 [`../kernel/proc.c`](../kernel/proc.c#624-656) 中的 `forkret()` 函数：
+在 [`../kernel/proc.c`](../kernel/proc.c#674-707) 中的 `forkret()` 函数：
 
 -   释放进程锁
 -   如果是第一个进程，初始化文件系统
--   在 [`../kernel/proc.c`](../kernel/proc.c#645) 调用 [`kexec("/init", (char *[]){ "/init", 0 })`](../kernel/exec.c#26) 加载 init 程序
+-   在 [`../kernel/proc.c`](../kernel/proc.c#695) 调用 [`kexec("/init", (char *[]){ "/init", 0 })`](../kernel/exec.c#27) 加载 init 程序
+-   调用 [`prepare_return()`](../kernel/trap.c#125) 准备返回用户空间
 -   最后通过 `userret` 返回到用户空间
 
 ## 4. Init 进程的执行
 
 ### 4.1 kexec 函数
 
-在 [`../kernel/exec.c`](../kernel/exec.c#26-138) 中的 `kexec()` 函数：
+在 [`../kernel/exec.c`](../kernel/exec.c#27-138) 中的 `kexec()` 函数：
 
 -   读取并解析 ELF 格式的 `/init` 程序
 -   加载程序到内存
@@ -100,7 +101,7 @@ _entry:
 
 ### 4.2 init 进程执行
 
--   init 进程在用户空间开始执行，从 [`../user/ulib.c`](../user/ulib.c#11-18) 中的 `start()` 函数开始
+-   init 进程在用户空间开始执行，从 [`../user/ulib.c`](../user/ulib.c#12-18) 中的 `start()` 函数开始
 -   在 [`../user/ulib.c`](../user/ulib.c#16) 调用 [`main()`](../user/init.c#15) 函数并处理返回值
 
 ## 5. Shell 程序的启动
@@ -122,18 +123,18 @@ for(;;){
 }
 ```
 
--   在 [`../user/init.c`](../user/init.c#29) 调用 [`fork()`](../kernel/proc.c#280) 创建子进程
--   在 [`../user/init.c`](../user/init.c#31) 调用 [`exec("sh", argv)`](../kernel/exec.c#26) 执行 shell 程序
+-   在 [`../user/init.c`](../user/init.c#28) 调用 [`fork()`](../kernel/proc.c#370) 创建子进程
+-   在 [`../user/init.c`](../user/init.c#34) 调用 [`exec("sh", argv)`](../kernel/exec.c#27) 执行 shell 程序
 
 ### 5.2 exec 系统调用
 
--   `exec("sh", argv)` 系统调用最终在 [`../kernel/exec.c`](../kernel/exec.c#26) 调用内核的 [`kexec()`](../kernel/exec.c#26) 函数
+-   `exec("sh", argv)` 系统调用最终在 [`../kernel/exec.c`](../kernel/exec.c#27) 调用内核的 [`kexec()`](../kernel/exec.c#27) 函数
 -   `kexec()` 加载 `sh` 程序到内存
--   设置程序入口点为 [`../user/ulib.c`](../user/ulib.c#11) 中的 `start()` 函数
+-   设置程序入口点为 [`../user/ulib.c`](../user/ulib.c#12) 中的 `start()` 函数
 
 ### 5.3 shell 程序开始执行
 
--   shell 进程在用户空间从 [`../user/ulib.c`](../user/ulib.c#11-18) 中的 `start()` 函数开始
+-   shell 进程在用户空间从 [`../user/ulib.c`](../user/ulib.c#12-18) 中的 `start()` 函数开始
 -   在 [`../user/ulib.c`](../user/ulib.c#16) 调用 [`main()`](../user/sh.c#146) 函数
 
 ## 6. Shell main 函数的执行
@@ -167,14 +168,15 @@ int main(void)
 1. **硬件启动** → [`../kernel/entry.S`](../kernel/entry.S#7) `_entry`
 2. **内核初始化** → [`../kernel/start.c`](../kernel/start.c#15) `start()`
 3. **主内核函数** → [`../kernel/main.c`](../kernel/main.c#26) `main()`
-4. **创建第一个用户进程** → [`../kernel/proc.c`](../kernel/proc.c#276) `userinit()`
-5. **进程调度** → [`../kernel/proc.c`](../kernel/proc.c#528) `scheduler()`
-6. **子进程返回点** → [`../kernel/proc.c`](../kernel/proc.c#624) `forkret()`
-7. **加载 init 程序** → [`../kernel/exec.c`](../kernel/exec.c#26) `kexec("/init", ...)`
-8. **init 进程执行** → [`../user/ulib.c`](../user/ulib.c#11) `start()` → [`../user/init.c`](../user/init.c#15) `main()`
-9. **init 启动 shell** → `exec("sh", argv)`
-10. **加载 shell 程序** → [`../kernel/exec.c`](../kernel/exec.c#26) `kexec("sh", ...)`
-11. **shell 进程执行** → [`../user/ulib.c`](../user/ulib.c#11) `start()` → [`../user/sh.c`](../user/sh.c#146) `main()`
+4. **创建第一个用户进程** → [`../kernel/proc.c`](../kernel/proc.c#315) `userinit()`
+5. **进程调度** → [`../kernel/proc.c`](../kernel/proc.c#577) `scheduler()`
+6. **子进程返回点** → [`../kernel/proc.c`](../kernel/proc.c#674) `forkret()`
+7. **准备返回用户空间** → [`../kernel/trap.c`](../kernel/trap.c#125) `prepare_return()`
+8. **加载 init 程序** → [`../kernel/exec.c`](../kernel/exec.c#27) `kexec("/init", ...)`
+9. **init 进程执行** → [`../user/ulib.c`](../user/ulib.c#12) `start()` → [`../user/init.c`](../user/init.c#15) `main()`
+10. **init 启动 shell** → `exec("sh", argv)`
+11. **加载 shell 程序** → [`../kernel/exec.c`](../kernel/exec.c#27) `kexec("sh", ...)`
+12. **shell 进程执行** → [`../user/ulib.c`](../user/ulib.c#12) `start()` → [`../user/sh.c`](../user/sh.c#146) `main()`
 
 ## 8. 关键点
 
