@@ -35,15 +35,15 @@ _entry:
 
 -   设置 CPU 特权模式从 Machine Mode 切换到 Supervisor Mode
 -   配置中断和异常处理
--   最后通过 `mret` 指令跳转到 [`kernel/main.c`](kernel/main.c:26) 中的 `main()` 函数
+-   最后通过 `mret` 指令跳转到 [`kernel/main.c`](../kernel/main.c#26) 中的 `main()` 函数
 
 ### 1.4 主内核初始化
 
-在 [`kernel/main.c`](kernel/main.c:26-79) 的 `main()` 函数中：
+在 [`kernel/main.c`](../kernel/main.c#26) 的 `main()` 函数中：
 
 -   第一个 CPU (hart 0) 执行主要初始化：
     -   初始化控制台、内存分配器、进程表等
-    -   调用 [`userinit()`](kernel/proc.c:276) 创建第一个用户进程
+    -   调用 [`userinit()`](../kernel/proc.c#276) 创建第一个用户进程
 -   所有 CPU 最终进入 [`scheduler()`](kernel/proc.c:528) 开始调度进程
 
 ## 2. 第一个用户进程的创建
