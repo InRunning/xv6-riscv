@@ -72,8 +72,9 @@ _entry:
 
 ### 3.1 进程调度
 
--   调度器选择状态为 `RUNNABLE` 的进程（即 init 进程）
--   执行上下文切换，跳转到进程的 `forkret` 函数
+-   在 [`../kernel/main.c`](../kernel/main.c#79) 中，所有 CPU 进入 [`scheduler()`](../kernel/proc.c#577) 开始调度进程
+-   调度器在 [`../kernel/proc.c`](../kernel/proc.c#592-610) 中选择状态为 `RUNNABLE` 的进程（即 init 进程）
+-   在 [`../kernel/proc.c`](../kernel/proc.c#603) 执行上下文切换 `swtch(&c->context, &p->context)`，跳转到进程的 `forkret` 函数
 
 ### 3.2 forkret 函数
 
