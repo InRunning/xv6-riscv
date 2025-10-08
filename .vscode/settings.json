@@ -24,6 +24,7 @@
     "commentAnchors.tags.displayInRuler": true,
     "files.associations": {
         "alert.rules": "yaml",
-        "__availability": "c"
+        "__availability": "c",
+        "defs.h": "c"
     }
 }
