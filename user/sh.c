@@ -1,129 +1,156 @@
 // Shell.
+// 这是一个简单的 Unix shell 实现，支持基本的命令执行、重定向、管道和后台任务功能。
 
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
+// 命令类型常量定义
 // Parsed command representation
-#define EXEC  1
-#define REDIR 2
-#define PIPE  3
-#define LIST  4
-#define BACK  5
+#define EXEC  1  // 执行普通命令
+#define REDIR 2  // 重定向命令
+#define PIPE  3  // 管道命令
+#define LIST  4  // 命令列表（顺序执行）
+#define BACK  5  // 后台执行命令
 
-#define MAXARGS 10
+#define MAXARGS 10  // 命令参数的最大数量
 
+// 基础命令结构体，所有命令类型都继承自这个结构
 struct cmd {
-  int type;
+  int type;  // 命令类型（EXEC, REDIR, PIPE, LIST, BACK）
 };
 
+// 执行命令结构体
 struct execcmd {
-  int type;
-  char *argv[MAXARGS];
-  char *eargv[MAXARGS];
+  int type;              // 命令类型，此处为 EXEC
+  char *argv[MAXARGS];   // 命令参数数组
+  char *eargv[MAXARGS];  // 参数结束位置指针数组，用于字符串终止
 };
 
+// 重定向命令结构体
 struct redircmd {
-  int type;
-  struct cmd *cmd;
-  char *file;
-  char *efile;
-  int mode;
-  int fd;
+  int type;         // 命令类型，此处为 REDIR
+  struct cmd *cmd;  // 要执行的子命令
+  char *file;       // 重定向目标文件名
+  char *efile;      // 文件名结束位置指针，用于字符串终止
+  int mode;         // 文件打开模式（读/写）
+  int fd;           // 要重定向的文件描述符
 };
 
+// 管道命令结构体
 struct pipecmd {
-  int type;
-  struct cmd *left;
-  struct cmd *right;
+  int type;         // 命令类型，此处为 PIPE
+  struct cmd *left;  // 管道左侧命令（写入端）
+  struct cmd *right; // 管道右侧命令（读取端）
 };
 
+// 命令列表结构体（顺序执行多个命令）
 struct listcmd {
-  int type;
-  struct cmd *left;
-  struct cmd *right;
+  int type;         // 命令类型，此处为 LIST
+  struct cmd *left;  // 第一个要执行的命令
+  struct cmd *right; // 第二个要执行的命令
 };
 
+// 后台命令结构体
 struct backcmd {
-  int type;
-  struct cmd *cmd;
+  int type;         // 命令类型，此处为 BACK
+  struct cmd *cmd;  // 要在后台执行的命令
 };
 
-int fork1(void);  // Fork but panics on failure.
-void panic(char*);
-struct cmd *parsecmd(char*);
-void runcmd(struct cmd*) __attribute__((noreturn));
+// 函数声明
+int fork1(void);  // Fork but panics on failure. // 创建子进程，失败时调用panic
+void panic(char*); // 错误处理函数，打印错误信息并退出
+struct cmd *parsecmd(char*); // 解析命令字符串，生成命令结构体
+void runcmd(struct cmd*) __attribute__((noreturn)); // 执行命令，永不返回
 
 // Execute cmd.  Never returns.
+// 执行解析后的命令，此函数永不返回（要么执行新程序，要么退出）
 void
 runcmd(struct cmd *cmd)
 {
-  int p[2];
-  struct backcmd *bcmd;
-  struct execcmd *ecmd;
-  struct listcmd *lcmd;
-  struct pipecmd *pcmd;
-  struct redircmd *rcmd;
+  int p[2];  // 管道文件描述符数组
+  struct backcmd *bcmd;   // 后台命令指针
+  struct execcmd *ecmd;   // 执行命令指针
+  struct listcmd *lcmd;   // 命令列表指针
+  struct pipecmd *pcmd;   // 管道命令指针
+  struct redircmd *rcmd;  // 重定向命令指针
 
+  // 检查命令是否为空
   if(cmd == 0)
     exit(1);
 
+  // 根据命令类型执行相应的操作
   switch(cmd->type){
   default:
-    panic("runcmd");
+    panic("runcmd");  // 未知命令类型，报错退出
 
-  case EXEC:
+  case EXEC:  // 执行普通命令
     ecmd = (struct execcmd*)cmd;
+    // 检查是否有命令要执行
     if(ecmd->argv[0] == 0)
       exit(1);
+    // 尝试执行命令
     exec(ecmd->argv[0], ecmd->argv);
+    // 如果exec返回，说明执行失败
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
-  case REDIR:
+  case REDIR:  // 处理重定向命令
     rcmd = (struct redircmd*)cmd;
+    // 关闭要重定向的文件描述符
     close(rcmd->fd);
+    // 打开重定向目标文件
     if(open(rcmd->file, rcmd->mode) < 0){
       fprintf(2, "open %s failed\n", rcmd->file);
       exit(1);
     }
+    // 执行重定向后的命令
     runcmd(rcmd->cmd);
     break;
 
-  case LIST:
+  case LIST:  // 处理命令列表（顺序执行）
     lcmd = (struct listcmd*)cmd;
+    // 创建子进程执行第一个命令
     if(fork1() == 0)
       runcmd(lcmd->left);
+    // 等待第一个命令完成
     wait(0);
+    // 执行第二个命令
     runcmd(lcmd->right);
     break;
 
-  case PIPE:
+  case PIPE:  // 处理管道命令
     pcmd = (struct pipecmd*)cmd;
+    // 创建管道
     if(pipe(p) < 0)
       panic("pipe");
+    // 创建子进程执行管道左侧命令（写入端）
     if(fork1() == 0){
-      close(1);
-      dup(p[1]);
-      close(p[0]);
-      close(p[1]);
-      runcmd(pcmd->left);
+      close(1);        // 关闭标准输出
+      dup(p[1]);       // 将管道写入端复制到标准输出
+      close(p[0]);     // 关闭管道读取端
+      close(p[1]);     // 关闭管道写入端
+      runcmd(pcmd->left);  // 执行左侧命令
     }
+    // 创建子进程执行管道右侧命令（读取端）
     if(fork1() == 0){
-      close(0);
-      dup(p[0]);
-      close(p[0]);
-      close(p[1]);
-      runcmd(pcmd->right);
+      close(0);        // 关闭标准输入
+      dup(p[0]);       // 将管道读取端复制到标准输入
+      close(p[0]);     // 关闭管道读取端
+      close(p[1]);     // 关闭管道写入端
+      runcmd(pcmd->right); // 执行右侧命令
     }
+    // 父进程关闭管道两端
     close(p[0]);
     close(p[1]);
+    // 等待两个子进程结束
     wait(0);
     wait(0);
     break;
 
-  case BACK:
+  case BACK:  // 处理后台命令
     bcmd = (struct backcmd*)cmd;
+    // 创建子进程在后台执行命令
     if(fork1() == 0)
       runcmd(bcmd->cmd);
     break;
@@ -131,66 +158,84 @@ runcmd(struct cmd *cmd)
   exit(0);
 }
 
+// 从用户输入获取命令
+// buf: 存储命令的缓冲区
+// nbuf: 缓冲区大小
+// 返回值: 0表示成功获取命令，-1表示EOF（用户输入Ctrl+D）
 int
 getcmd(char *buf, int nbuf)
 {
-  write(2, "$ ", 2);
-  memset(buf, 0, nbuf);
-  gets(buf, nbuf);
-  if(buf[0] == 0) // EOF
+  write(2, "$ ", 2);  // 显示shell提示符
+  memset(buf, 0, nbuf);  // 清空缓冲区
+  gets(buf, nbuf);  // 读取用户输入
+  if(buf[0] == 0) // EOF，用户输入Ctrl+D
     return -1;
   return 0;
 }
 
+// Shell主函数
 int
 main(void)
 {
-  static char buf[100];
+  static char buf[100];  // 命令缓冲区
   int fd;
 
-  // Ensure that three file descriptors are open.
+  // 确保三个标准文件描述符（0,1,2）是打开的
+  // 如果console设备文件被打开，会返回文件描述符
+  // 我们需要确保0,1,2这三个描述符被占用，其他打开的描述符需要关闭
   while((fd = open("console", O_RDWR)) >= 0){
-    if(fd >= 3){
-      close(fd);
+    if(fd >= 3){  // 如果文件描述符大于等于3，说明标准描述符已经打开
+      close(fd);  // 关闭多余的描述符
       break;
     }
   }
 
-  // Read and run input commands.
+  // 循环读取并执行用户输入的命令
   while(getcmd(buf, sizeof(buf)) >= 0){
     char *cmd = buf;
+    // 跳过命令开头的空白字符
     while (*cmd == ' ' || *cmd == '\t')
       cmd++;
+    // 如果是空命令（只有换行符），则跳过
     if (*cmd == '\n') // is a blank command
       continue;
+    // 处理cd命令（必须在父进程中执行，不能在子进程中）
     if(cmd[0] == 'c' && cmd[1] == 'd' && cmd[2] == ' '){
       // Chdir must be called by the parent, not the child.
-      cmd[strlen(cmd)-1] = 0;  // chop \n
+      cmd[strlen(cmd)-1] = 0;  // 去掉末尾的换行符
+      // 尝试切换目录
       if(chdir(cmd+3) < 0)
         fprintf(2, "cannot cd %s\n", cmd+3);
     } else {
+      // 对于其他命令，创建子进程执行
       if(fork1() == 0)
-        runcmd(parsecmd(cmd));
-      wait(0);
+        runcmd(parsecmd(cmd));  // 解析并执行命令
+      wait(0);  // 等待子进程结束
     }
   }
   exit(0);
 }
 
+// 错误处理函数
+// 打印错误信息到标准错误并退出
+// s: 错误信息字符串
 void
 panic(char *s)
 {
-  fprintf(2, "%s\n", s);
-  exit(1);
+  fprintf(2, "%s\n", s);  // 将错误信息输出到标准错误（文件描述符2）
+  exit(1);  // 以错误状态退出
 }
 
+// 创建子进程的包装函数
+// 如果fork失败，调用panic函数报错退出
+// 返回值: 在父进程中返回子进程PID，在子进程中返回0
 int
 fork1(void)
 {
   int pid;
 
-  pid = fork();
-  if(pid == -1)
+  pid = fork();  // 创建子进程
+  if(pid == -1)  // fork失败
     panic("fork");
   return pid;
 }

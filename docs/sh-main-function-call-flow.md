@@ -92,71 +92,52 @@ _entry:
         5. **路径名层（Pathname Layer）**：提供层次化的路径名解析，如 "/usr/bin/ls"
     -   [`fsinit()`](../kernel/fs.c#43-54) 函数执行以下三个主要步骤：
         1. **读取超级块（Superblock）**：
-            -   调用 [`readsb(dev, &sb)`](../kernel/fs.c#46) 读取磁盘块 1 中的超级块
-            -   超级块是文件系统的核心元数据结构，包含以下关键信息：
-                -   `sb.size`：文件系统总块数
-                -   `sb.nblocks`：数据块数量
-                -   `sb.ninodes`：inode 总数
-                -   `sb.nlog`：日志区域大小
-                -   `sb.logstart`：日志区域起始块号
-                -   `sb.inodestart`：inode 区域起始块号
-                -   `sb.bmapstart`：块位图起始块号
-            -   检查文件系统魔数 `sb.magic != FSMAGIC`，确保这是一个有效的 xv6 文件系统
-            -   超级块信息被存储在全局变量 `sb` 中，供整个文件系统使用
+            - 调用 [`readsb(dev, &sb)`](../kernel/fs.c#46) 读取磁盘块 1 中的超级块
+            - 超级块是文件系统的核心元数据结构，包含以下关键信息：
+                - `sb.size`：文件系统总块数
+                - `sb.nblocks`：数据块数量
+                - `sb.ninodes`：inode 总数
+                - `sb.nlog`：日志区域大小
+                - `sb.logstart`：日志区域起始块号
+                - `sb.inodestart`：inode 区域起始块号
+                - `sb.bmapstart`：块位图起始块号
+            - 检查文件系统魔数 `sb.magic != FSMAGIC`，确保这是一个有效的 xv6 文件系统
+            - 超级块信息被存储在全局变量 `sb` 中，供整个文件系统使用
         2. **初始化日志系统（Logging System）**：
-            -   调用 [`initlog(dev, &sb)`](../kernel/log.c#58) 初始化日志系统
-            -   日志系统用于确保文件系统操作的原子性，防止系统崩溃导致文件系统不一致
-            -   日志系统的工作原理：
-                -   文件系统操作（如创建文件、写入数据）被记录在日志区域
-                -   只有当所有操作成功完成后，才会将日志中的更改提交到实际的文件系统区域
-                -   如果系统在操作过程中崩溃，重启时可以通过日志恢复或回滚未完成的操作
-            -   日志系统包含以下关键组件：
-                -   日志头部（log header）：记录当前事务中包含的块
-                -   日志块（log blocks）：存储实际的数据块内容
-                -   提交机制（commit mechanism）：确保事务的原子性
-            -   [`initlog()`](../kernel/log.c#58) 函数执行以下初始化步骤：
+            - 调用 [`initlog(dev, &sb)`](../kernel/log.c#58) 初始化日志系统
+            - 日志系统用于确保文件系统操作的原子性，防止系统崩溃导致文件系统不一致
+            - 日志系统的工作原理：
+                - 文件系统操作（如创建文件、写入数据）被记录在日志区域
+                - 只有当所有操作成功完成后，才会将日志中的更改提交到实际的文件系统区域
+                - 如果系统在操作过程中崩溃，重启时可以通过日志恢复或回滚未完成的操作
+            - 日志系统包含以下关键组件：
+                - 日志头部（log header）：记录当前事务中包含的块
+                - 日志块（log blocks）：存储实际的数据块内容
+                - 提交机制（commit mechanism）：确保事务的原子性
+            - [`initlog()`](../kernel/log.c#58) 函数执行以下初始化步骤：
                 1. **检查日志头部大小**：
-                    -   验证 [`sizeof(struct logheader)`](../kernel/log.c:64) 小于磁盘块大小 `BSIZE`
-                    -   确保日志头部能完整存储在一个磁盘块中，这是日志系统正常工作的前提
+                    - 验证 [`sizeof(struct logheader)`](../kernel/log.c#64) 小于磁盘块大小 `BSIZE`
+                    - 确保日志头部能完整存储在一个磁盘块中，这是日志系统正常工作的前提
                 2. **初始化日志锁**：
-                    -   调用 [`initlock(&log.lock, "log")`](../kernel/log.c:69) 初始化自旋锁
-                    -   用于保护日志数据结构的并发访问，确保多进程环境下的数据一致性
+                    - 调用 [`initlock(&log.lock, "log")`](../kernel/log.c#69) 初始化自旋锁
+                    - 用于保护日志数据结构的并发访问，确保多进程环境下的数据一致性
                 3. **设置日志参数**：
-                    -   设置日志起始块号 [`log.start = sb->logstart`](../kernel/log.c:73)
-                    -   记录日志所在设备号 [`log.dev = dev`](../kernel/log.c:76)
-                    -   这些参数用于后续的磁盘读写操作
+                    - 设置日志起始块号 [`log.start = sb->logstart`](../kernel/log.c#73)
+                    - 记录日志所在设备号 [`log.dev = dev`](../kernel/log.c#76)
+                    - 这些参数用于后续的磁盘读写操作
                 4. **恢复未完成的事务**：
-                    -   调用 [`recover_from_log()`](../kernel/log.c:81) 检查并恢复未完成的事务
-                    -   如果系统在事务提交过程中崩溃，此函数确保文件系统的一致性
-            -   日志系统的事务处理流程：
-                1. **事务开始**：文件系统操作调用 [`begin_op()`](../kernel/log.c:147) 标记事务开始
-                2. **记录修改**：通过 [`log_write()`](../kernel/log.c:235) 记录需要写入的块
-                3. **事务结束**：操作完成后调用 [`end_op()`](../kernel/log.c:167) 标记事务结束
-                4. **提交事务**：如果没有其他活跃操作，调用 [`commit()`](../kernel/log.c:214) 提交事务
-            -   事务提交流程包含以下步骤：
-                1. **写入日志**：[`write_log()`](../kernel/log.c:199) 将修改的块从缓存写入日志区域
-                2. **写入头部**：[`write_head()`](../kernel/log.c:123) 将日志头部写入磁盘，这是真正的提交点
-                3. **安装事务**：[`install_trans()`](../kernel/log.c:86) 将日志中的块复制到它们的原始位置
-                4. **清理日志**：清空日志头部并写入磁盘，完成事务清理
-            -   日志系统的并发控制机制：
-                -   使用 [`log.outstanding`](../kernel/log.c:43) 计数器跟踪当前活跃的文件系统操作数量
-                -   使用 [`log.committing`](../kernel/log.c:44) 标志防止并发提交
-                -   通过 [`begin_op()`](../kernel/log.c:147) 和 [`end_op()`](../kernel/log.c:167) 实现操作的同步
-                -   当日志空间不足时，操作会等待直到当前事务提交完成
-            -   日志恢复机制：
-                -   系统启动时，[`recover_from_log()`](../kernel/log.c:137) 读取日志头部
-                -   如果发现未完成的事务，调用 [`install_trans(1)`](../kernel/log.c:140) 恢复数据
-                -   清空日志头部，为后续操作做准备
+                    - 调用 [`recover_from_log()`](../kernel/log.c#81) 检查并恢复未完成的事务
+                    - 如果系统在事务提交过程中崩溃，此函数确保文件系统的一致性
         3. **回收孤立的 inode（Reclaim Orphaned Inodes）**：
-            -   调用 [`ireclaim(dev)`](../kernel/fs.c#53) 回收孤立的 inode
-            -   孤立 inode 是指磁盘上存在但未被任何目录引用的 inode（链接计数为 0）
-            -   这些 inode 可能由于系统崩溃或异常情况产生，需要清理以释放磁盘空间
-            -   [`ireclaim()`](../kernel/fs.c#458-492) 函数遍历所有 inode，检查并释放孤立的 inode
-            -   回收过程：
-                -   遍历所有 inode 位图中的 inode
-                -   对于每个 inode，检查其链接计数（nlink）
-                -   如果链接计数为 0 且 inode 已被分配，则释放该 inode 及其数据块
-                -   更新 inode 位图，标记这些 inode 为未使用
+            - 调用 [`ireclaim(dev)`](../kernel/fs.c#53) 回收孤立的 inode
+            - 孤立 inode 是指磁盘上存在但未被任何目录引用的 inode（链接计数为 0）
+            - 这些 inode 可能由于系统崩溃或异常情况产生，需要清理以释放磁盘空间
+            - [`ireclaim()`](../kernel/fs.c#458-492) 函数遍历所有 inode，检查并释放孤立的 inode
+            - 回收过程：
+                - 遍历所有 inode 位图中的 inode
+                - 对于每个 inode，检查其链接计数（nlink）
+                - 如果链接计数为 0 且 inode 已被分配，则释放该 inode 及其数据块
+                - 更新 inode 位图，标记这些 inode 为未使用
     -   文件系统初始化完成后，系统可以提供以下基本功能：
         -   文件和目录的创建、读取、写入和删除
         -   层次化的文件系统结构

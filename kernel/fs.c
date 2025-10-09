@@ -210,8 +210,8 @@ bfree(int dev, uint b)
 // 包含一个自旋锁和一组 inode 缓存
 struct
 {
-  struct spinlock lock;  // 保护 inode 表的自旋锁
-  struct inode inode[NINODE];  // inode 缓存数组
+  struct spinlock lock;       // 保护 inode 表的自旋锁
+  struct inode inode[NINODE]; // inode 缓存数组
 } itable;
 
 // 初始化 inode 表
@@ -255,14 +255,14 @@ ialloc(uint dev, short type)
     if (dip->type == 0)
     {
       // 找到一个空闲 inode
-      memset(dip, 0, sizeof(*dip));  // 清零 inode
-      dip->type = type;  // 设置类型
-      log_write(bp); // 在磁盘上标记为已分配
-      brelse(bp);  // 释放缓冲区
+      memset(dip, 0, sizeof(*dip)); // 清零 inode
+      dip->type = type;             // 设置类型
+      log_write(bp);                // 在磁盘上标记为已分配
+      brelse(bp);                   // 释放缓冲区
       // 获取 inode 的内存表示并增加引用计数
       return iget(dev, inum);
     }
-    brelse(bp);  // 释放缓冲区
+    brelse(bp); // 释放缓冲区
   }
   printf("ialloc: no inodes\n");
   return 0;
@@ -332,7 +332,7 @@ iget(uint dev, uint inum)
   ip->dev = dev;
   ip->inum = inum;
   ip->ref = 1;
-  ip->valid = 0;  // 标记为无效，需要从磁盘读取
+  ip->valid = 0; // 标记为无效，需要从磁盘读取
   release(&itable.lock);
 
   return ip;
@@ -454,7 +454,7 @@ void iunlockput(struct inode *ip)
 }
 
 // 回收设备上的孤立 inode
-// 孤立 inode 是指类型非零但链接计数为 0 的 inode
+// 孤立 inode 是指类型非零但链接计数为 0 的 inode， ireclaim 是inode reclaim的简写
 void ireclaim(int dev)
 {
   // 遍历所有 inode
@@ -612,7 +612,7 @@ void itrunc(struct inode *ip)
 // 调用者必须持有 ip->lock
 void stati(struct inode *ip, struct stat *st)
 {
-  st->dev = ip->dev;      // 设备号
+  st->dev = ip->dev;     // 设备号
   st->ino = ip->inum;    // inode 号
   st->type = ip->type;   // 文件类型
   st->nlink = ip->nlink; // 链接计数

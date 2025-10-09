@@ -25,5 +25,11 @@
     },
     "kernel/start.c": {
         "description": "初始化内核"
+    },
+    "kernel/fs.c": {
+        "description": "文件系统"
+    },
+    "kernel/exec.c": {
+        "description": "执行程序"
     }
 }
