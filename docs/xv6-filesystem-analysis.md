@@ -4,19 +4,97 @@
 
 ## 1. 命令解析阶段
 
-### 1.1 Shell 解析命令
+### 1.1 Shell 主循环
 
-[跳到 user/sh.c 第 160 行](../user/sh.c#160)
-Shell 主循环读取并解析命令行输入
+[跳到 user/sh.c 第 220 行](../user/sh.c#220)
+Shell 主函数 `main()` 开始执行，首先确保标准文件描述符已正确设置
 
-[跳到 user/sh.c 第 334 行](../user/sh.c#334)
-`parsecmd()` 函数解析命令字符串，将 `echo "hi" > x` 解析为：
+[跳到 user/sh.c 第 247 行](../user/sh.c#247)
+确保三个标准文件描述符（0,1,2）是打开的，通过循环打开 console 设备并关闭多余的描述符
 
--   一个执行命令 (execcmd): `echo "hi"`
--   一个重定向命令 (redircmd): 输出重定向到文件 `x`
+[跳到 user/sh.c 第 255 行](../user/sh.c#255)
+进入主循环，调用 `getcmd()` 函数获取用户输入的命令
 
-[跳到 user/sh.c 第 394 行](../user/sh.c#394)
-重定向解析中，`>` 被解析为 `O_WRONLY|O_CREATE|O_TRUNC` 模式
+[跳到 user/sh.c 第 191 行](../user/sh.c#191)
+`getcmd()` 函数显示 shell 提示符 "$ " 并读取用户输入的命令到缓冲区
+
+### 1.2 命令解析流程
+
+[跳到 user/sh.c 第 273 行](../user/sh.c#273)
+对于非 cd 命令，创建子进程并调用 `parsecmd()` 解析命令字符串
+
+[跳到 user/sh.c 第 473 行](../user/sh.c#473)
+`parsecmd()` (Command Parse Function) 函数开始解析命令字符串，这是命令解析的入口点
+
+[跳到 user/sh.c 第 480 行](../user/sh.c#480)
+计算字符串的结束位置，`es = s + strlen(s)`，其中 `strlen()` 计算字符串长度
+
+[跳到 user/sh.c 第 486 行](../user/sh.c#486)
+调用 `parseline()` (Parse Line Function) 函数解析命令行，处理后台执行和命令列表操作符
+
+### 1.3 命令行解析
+
+[跳到 user/sh.c 第 513 行](../user/sh.c#513)
+`parseline()` 函数开始解析命令行，首先调用 `parsepipe()` 解析可能的管道命令
+
+[跳到 user/sh.c 第 518 行](../user/sh.c#518)
+`parsepipe()` (Parse Pipe Function) 函数解析管道操作符，首先调用 `parseexec()` 解析执行命令
+
+[跳到 user/sh.c 第 584 行](../user/sh.c#584)
+`parseexec()` (Parse Exec Function) 函数解析执行命令，处理命令参数和重定向
+
+[跳到 user/sh.c 第 599 行](../user/sh.c#599)
+调用 `parseredirs()` (Parse Redirects Function) 函数解析重定向操作符
+
+[跳到 user/sh.c 第 549 行](../user/sh.c#549)
+`parseredirs()` 函数检查重定向操作符（<, >, >>），对于 `echo "hi" > x` 命令：
+
+[跳到 user/sh.c 第 557 行](../user/sh.c#557)
+当遇到 `>` 操作符时，调用 `redircmd()` 创建重定向命令结构，模式为 `O_WRONLY|O_CREATE|O_TRUNC`
+
+### 1.4 命令结构构建
+
+[跳到 user/sh.c 第 319 行](../user/sh.c#319)
+`redircmd()` (Redirect Command) 函数创建重定向命令结构体，包含：
+- 子命令：`echo "hi"` 的执行命令
+- 文件名：`x`
+- 模式：`O_WRONLY|O_CREATE|O_TRUNC`
+- 文件描述符：1（标准输出）
+
+[跳到 user/sh.c 第 308 行](../user/sh.c#308)
+`execcmd()` (Execute Command) 函数创建执行命令结构体，包含：
+- 命令名：`echo`
+- 参数：`"hi"`
+
+[跳到 user/sh.c 第 506 行](../user/sh.c#506)
+解析完成后，调用 `nulterminate()` (Null Terminate) 函数为命令结构中的所有字符串添加空字符终止符
+
+### 1.5 命令解析完成
+
+[跳到 user/sh.c 第 491 行](../user/sh.c#491)
+调用 `peek()` 函数检查是否还有未解析的字符，确保整个命令字符串被正确解析
+
+[跳到 user/sh.c 第 495 行](../user/sh.c#495)
+如果有未解析的字符，输出错误信息并调用 `panic()` 函数终止程序
+
+[跳到 user/sh.c 第 510 行](../user/sh.c#510)
+返回最终构建的命令结构，对于 `echo "hi" > x` 命令，返回一个重定向命令结构，其中包含执行命令作为子命令
+
+### 1.6 Shell 解析命令总结
+
+`echo "hi" > x` 命令的解析过程涉及以下函数调用链：
+
+1. `main()` -> `getcmd()` -> `parsecmd()`
+2. `parsecmd()` -> `parseline()`
+3. `parseline()` -> `parsepipe()`
+4. `parsepipe()` -> `parseexec()`
+5. `parseexec()` -> `parseredirs()` -> `redircmd()`
+6. `parseexec()` -> `execcmd()`
+7. 最后调用 `nulterminate()` 确保所有字符串正确终止
+
+解析结果是一个嵌套的命令结构：
+- 外层是 `redircmd` 结构，表示输出重定向到文件 `x`
+- 内层是 `execcmd` 结构，表示执行 `echo "hi"` 命令
 
 ### 1.2 命令执行
 
