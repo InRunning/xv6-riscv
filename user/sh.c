@@ -276,8 +276,10 @@ void runcmd(struct cmd *cmd)
     close(rcmd->fd);
 
     // 打开重定向目标文件 (Open Redirect Target File)
-    // open()会返回最小的可用文件描述符，由于我们刚刚关闭了rcmd->fd
-    // 所以open()通常会返回rcmd->fd，从而实现重定向
+    // open() 会挑选“当前未被占用的最小文件描述符”。
+    // 因为刚刚 close(rcmd->fd) 把目标编号空出来，所以 open() 几乎总会
+    // 把新文件放在同一个编号上（套用了 Unix 的“最小可用 fd” 规则），
+    // 从而使后续对标准输入/输出/错误的读写自动转向新文件。
     if (open(rcmd->file, rcmd->mode) < 0)
     {
       // 如果打开文件失败，打印错误信息并退出
