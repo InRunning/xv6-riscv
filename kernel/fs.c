@@ -855,10 +855,12 @@ skipelem(char *path, char *name)
   len = path - s;
   // 复制元素名称
   if (len >= DIRSIZ)
+    // 目录项名超过 DIRSIZ，按照 xv6 规则截断为固定长度
     memmove(name, s, DIRSIZ);
   else
   {
-    memmove(name, s, len);
+    // 正常长度：复制实际字符并自行补终止符
+    memmove(name, s, len); // 将当前路径分量从源指针 s 复制到输出缓冲区 name
     name[len] = 0;
   }
   // 跳过后续斜杠
@@ -876,6 +878,9 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
+  // 如果路径为空字符串，默认从当前目录开始解析
+  // （nameiparent 模式需要依旧走完整个流程来捕获父目录）
+
   // 如果路径以 '/' 开头，从根目录开始
   if (*path == '/')
     ip = iget(ROOTDEV, ROOTINO);
@@ -883,9 +888,10 @@ namex(char *path, int nameiparent, char *name)
     // 否则从当前工作目录开始
     ip = idup(myproc()->cwd);
 
-  // 逐个处理路径元素
+  // 逐个处理路径元素，将path复制到name
   while ((path = skipelem(path, name)) != 0)
   {
+    // name 现在保存了一个目录项，如 "."、".." 或普通文件名
     // 锁定当前 inode
     ilock(ip);
     // 检查是否是目录
@@ -904,6 +910,7 @@ namex(char *path, int nameiparent, char *name)
     // 在目录中查找下一个元素
     if ((next = dirlookup(ip, name, 0)) == 0)
     {
+      // 找不到目标子项，解析失败
       iunlockput(ip);
       return 0;
     }
@@ -917,6 +924,7 @@ namex(char *path, int nameiparent, char *name)
     iput(ip);
     return 0;
   }
+  // 返回解析到的最终 inode（调用者负责后续锁管理）
   return ip;
 }
 
@@ -925,6 +933,7 @@ struct inode *
 namei(char *path)
 {
   char name[DIRSIZ];
+  // 使用临时缓冲区逐级解析路径，返回最终目标的 inode
   return namex(path, 0, name);
 }
 

@@ -33,17 +33,22 @@ memmove(void *dst, const void *src, uint n)
   const char *s;
   char *d;
 
+  // 与 memcpy 不同，memmove 需要支持重叠的内存区域。
+  // 按照标准语义，复制过程如同先将源区域保存到临时缓冲区再写回。
+
   if(n == 0)
     return dst;
   
   s = src;
   d = dst;
   if(s < d && s + n > d){
+    // 源和目标重叠且目标起始位于源内部：必须从尾部向前复制，避免破坏尚未复制的数据。
     s += n;
     d += n;
     while(n-- > 0)
       *--d = *--s;
   } else
+    // 其他情况下可安全地自头向尾复制。
     while(n-- > 0)
       *d++ = *s++;
 
@@ -104,4 +109,3 @@ strlen(const char *s)
     ;
   return n;
 }
-
