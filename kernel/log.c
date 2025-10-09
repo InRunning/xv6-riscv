@@ -275,6 +275,25 @@ commit()
 //   modify bp->data[]
 //   log_write(bp)
 //   brelse(bp)
+//
+// Terminology:
+// - `log.lh`: log header structure that tracks every dirty block number queued
+//   for commit (`lh` stands for log header).
+// - `bpin`: buffer pin (prevent eviction) helper that increments the reference
+//   count inside the buffer cache.
+// - `log.outstanding`: count of active filesystem system calls so the log layer
+//   can detect when the final writer exits its critical section.
+//
+// Control flow:
+// 1. Take the global log lock to serialize updates to the in-memory header.
+// 2. Reject attempts to enqueue beyond `LOGBLOCKS` (maximum blocks the log can
+//    hold) or writes that occur outside a transaction.
+// 3. Absorb duplicate block numbers so a single disk block appears only once in
+//    the transaction—later modifications simply reuse the earlier slot.
+// 4. Pin newly added buffers so the buffer cache cannot recycle them before the
+//    commit sequence completes.
+// 5. Release the lock; the caller can now drop its buffer reference with
+//    `brelse` (buffer release).
 void
 log_write(struct buf *b)
 {
@@ -306,4 +325,3 @@ log_write(struct buf *b)
   // 释放锁
   release(&log.lock);
 }
-

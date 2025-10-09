@@ -134,6 +134,29 @@ fileread(struct file *f, uint64 addr, int n)
 int
 filewrite(struct file *f, uint64 addr, int n)
 {
+  // This routine is the single write entry point for every open file object.
+  // It fans out to different implementations based on `f->type` (file type),
+  // ensures the operation participates in the log (write-ahead logging), and
+  // keeps the file offset in sync.
+  //
+  // Key abbreviations expanded:
+  // - `FD_PIPE`  : file descriptor backed by an in-memory pipe (First-In First-Out channel).
+  // - `FD_DEVICE`: file descriptor that proxies a character device.
+  // - `FD_INODE` : file descriptor that maps to an on-disk inode (index node).
+  //
+  // Control flow summary:
+  // 1. Reject the call if the file is not marked writable.
+  // 2. For pipes and devices, delegate to their specialised writer functions.
+  // 3. For inode-backed files:
+  //    a. Split the request into chunks so a single log transaction never
+  //       exceeds `MAXOPBLOCKS` (maximum operation blocks).
+  //    b. Surround each chunk with `begin_op` / `end_op` so the log layer can
+  //       reserve space and commit safely.
+  //    c. Lock the inode, call `writei` (write inode) to move bytes from user
+  //       space, advance the per-descriptor file offset, and release the lock.
+  // 4. Convert any partial failure into `-1`, otherwise bubble the byte count to
+  //    the caller.
+
   int r, ret = 0;
 
   if(f->writable == 0)
@@ -177,4 +200,3 @@ filewrite(struct file *f, uint64 addr, int n)
 
   return ret;
 }
-

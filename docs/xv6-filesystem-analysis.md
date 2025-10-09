@@ -6,79 +6,45 @@
 
 ### 1.1 Shell 主循环
 
-[跳到 user/sh.c 第 220 行](../user/sh.c#220)
-Shell 主函数 `main()` 开始执行，首先确保标准文件描述符已正确设置
-
-[跳到 user/sh.c 第 247 行](../user/sh.c#247)
-确保三个标准文件描述符（0,1,2）是打开的，通过循环打开 console 设备并关闭多余的描述符
-
-[跳到 user/sh.c 第 255 行](../user/sh.c#255)
-进入主循环，调用 `getcmd()` 函数获取用户输入的命令
-
-[跳到 user/sh.c 第 191 行](../user/sh.c#191)
-`getcmd()` 函数显示 shell 提示符 "$ " 并读取用户输入的命令到缓冲区
+- [`main()`](../user/sh.c#L456)
+  - [确保标准文件描述符 0/1/2 打开](../user/sh.c#L485)：循环打开 `console` 并在描述符达到 3 时关闭多余句柄，确保 shell 环境就绪。
+  - [进入命令读取循环](../user/sh.c#L497)：调用 `getcmd()` 获取用户输入。
+    - [`getcmd()`](../user/sh.c#L400)：写出提示符 `$ `，清空缓冲区后读取用户输入。
 
 ### 1.2 命令解析流程
 
-[跳到 user/sh.c 第 273 行](../user/sh.c#273)
-对于非 cd 命令，创建子进程并调用 `parsecmd()` 解析命令字符串
-
-[跳到 user/sh.c 第 473 行](../user/sh.c#473)
-`parsecmd()` (Command Parse Function) 函数开始解析命令字符串，这是命令解析的入口点
-
-[跳到 user/sh.c 第 480 行](../user/sh.c#480)
-计算字符串的结束位置，`es = s + strlen(s)`，其中 `strlen()` 计算字符串长度
-
-[跳到 user/sh.c 第 486 行](../user/sh.c#486)
-调用 `parseline()` (Parse Line Function) 函数解析命令行，处理后台执行和命令列表操作符
+- [`main()`](../user/sh.c#L533)（非 `cd` 分支）
+  - `fork1()` 创建子进程，子进程调用 `runcmd(parsecmd(cmd))`
+    - [`parsecmd()`](../user/sh.c#L1113)：命令解析入口
+      - [计算字符串尾指针](../user/sh.c#L1120) `es = s + strlen(s)`
+      - [调用 `parseline()` 解析命令行](../user/sh.c#L1126)，处理 `;`、`&` 等控制符
 
 ### 1.3 命令行解析
 
-[跳到 user/sh.c 第 513 行](../user/sh.c#513)
-`parseline()` 函数开始解析命令行，首先调用 `parsepipe()` 解析可能的管道命令
-
-[跳到 user/sh.c 第 518 行](../user/sh.c#518)
-`parsepipe()` (Parse Pipe Function) 函数解析管道操作符，首先调用 `parseexec()` 解析执行命令
-
-[跳到 user/sh.c 第 584 行](../user/sh.c#584)
-`parseexec()` (Parse Exec Function) 函数解析执行命令，处理命令参数和重定向
-
-[跳到 user/sh.c 第 599 行](../user/sh.c#599)
-调用 `parseredirs()` (Parse Redirects Function) 函数解析重定向操作符
-
-[跳到 user/sh.c 第 549 行](../user/sh.c#549)
-`parseredirs()` 函数检查重定向操作符（<, >, >>），对于 `echo "hi" > x` 命令：
-
-[跳到 user/sh.c 第 557 行](../user/sh.c#557)
-当遇到 `>` 操作符时，调用 `redircmd()` 创建重定向命令结构，模式为 `O_WRONLY|O_CREATE|O_TRUNC`
+- [`parseline()`](../user/sh.c#L1199)
+  - 调用 [`parsepipe()`](../user/sh.c#L1279)
+    - 调用 [`parseexec()`](../user/sh.c#L1554) 解析可执行命令
+      - 调用 [`parseredirs()`](../user/sh.c#L1587) 处理重定向
+        - [`parseredirs()`](../user/sh.c#L1362) 检查 `<`、`>`、`>>`
+          - 遇到 `>` 时调用 [`redircmd()`](../user/sh.c#L1406) 构造重定向节点，模式 `O_WRONLY|O_CREATE|O_TRUNC`
+      - [`parseexec()`](../user/sh.c#L1554) 为命令及参数构造执行节点
 
 ### 1.4 命令结构构建
 
-[跳到 user/sh.c 第 319 行](../user/sh.c#319)
-`redircmd()` (Redirect Command) 函数创建重定向命令结构体，包含：
-- 子命令：`echo "hi"` 的执行命令
-- 文件名：`x`
-- 模式：`O_WRONLY|O_CREATE|O_TRUNC`
-- 文件描述符：1（标准输出）
-
-[跳到 user/sh.c 第 308 行](../user/sh.c#308)
-`execcmd()` (Execute Command) 函数创建执行命令结构体，包含：
-- 命令名：`echo`
-- 参数：`"hi"`
-
-[跳到 user/sh.c 第 506 行](../user/sh.c#506)
-解析完成后，调用 `nulterminate()` (Null Terminate) 函数为命令结构中的所有字符串添加空字符终止符
+- [`parseexec()` 构造命令树]()
+  - [`redircmd()`](../user/sh.c#L731) 生成重定向节点
+    - 子节点：[`execcmd()`](../user/sh.c#L675) 生成的执行命令（`echo` + `"hi"` 参数）
+    - 文件名：`x`
+    - 模式：`O_WRONLY|O_CREATE|O_TRUNC`
+    - 文件描述符：1（标准输出）
+  - [`nulterminate()`](../user/sh.c#L1147) 遍历命令树，为所有字符串补上结尾 `\0`
 
 ### 1.5 命令解析完成
 
-[跳到 user/sh.c 第 491 行](../user/sh.c#491)
-调用 `peek()` 函数检查是否还有未解析的字符，确保整个命令字符串被正确解析
-
-[跳到 user/sh.c 第 495 行](../user/sh.c#495)
-如果有未解析的字符，输出错误信息并调用 `panic()` 函数终止程序
-
-[跳到 user/sh.c 第 510 行](../user/sh.c#510)
-返回最终构建的命令结构，对于 `echo "hi" > x` 命令，返回一个重定向命令结构，其中包含执行命令作为子命令
+- [`parsecmd()` 收尾](../user/sh.c#L1131)
+  - `peek()` 确认没有剩余非法字符
+    - 如发现残留触发 [`panic("syntax")`](../user/sh.c#L1135)
+  - 返回最终命令树（外层 `redircmd`，内层 `execcmd`）
 
 ### 1.6 Shell 解析命令总结
 
@@ -96,235 +62,164 @@ Shell 主函数 `main()` 开始执行，首先确保标准文件描述符已正�
 - 外层是 `redircmd` 结构，表示输出重定向到文件 `x`
 - 内层是 `execcmd` 结构，表示执行 `echo "hi"` 命令
 
+### 1.7 命令节点类型与嵌套关系
+
+- [`struct cmd`](../user/sh.c#L61)：所有命令节点的基类，只有一个 `type` 字段用于区分具体派生类型。
+  - `type = EXEC` → [`struct execcmd`](../user/sh.c#L69)
+    - 包含命令参数数组 `argv[]` 与结尾指针 `eargv[]`。
+    - 叶子节点，表示真正要执行的程序（如 `echo`）。
+  - `type = REDIR` → [`struct redircmd`](../user/sh.c#L89)
+    - 持有一个子命令指针 `cmd`（可指向任意 `struct cmd`）。
+    - 额外记录重定向目标文件 `file`、其结尾 `efile`，打开模式 `mode`（如 `O_WRONLY|O_CREATE|O_TRUNC`）以及被重定向的文件描述符 `fd`。
+    - 在本案例中外层节点即为 `redircmd`，其子节点是 `execcmd`。
+  - `type = PIPE` → [`struct pipecmd`](../user/sh.c#L118)
+    - 拥有 `left`、`right` 两个子节点，分别代表管道左、右侧的命令。
+    - 典型嵌套：`left`、`right` 可继续是 `redircmd`、`listcmd` 等复合结构。
+  - `type = LIST` → [`struct listcmd`](../user/sh.c#L134)
+    - 顺序执行的二叉节点，`left` 完成后才执行 `right`。
+    - 用于解析 `cmd1 ; cmd2` 形式的命令串。
+  - `type = BACK` → [`struct backcmd`](../user/sh.c#L150)
+    - 单子节点 `cmd`，标记该命令应在后台运行（shell 不等待其完成）。
+- 解析器 `parsecmd()` + `parseline()` + `parsepipe()` + `parseexec()` 根据语法构造上述树状结构；执行器 `runcmd()` 根据 `type` 字段递归派发，遵循父子嵌套关系完成重定向、管道、后台等语义。
+
 ### 1.2 命令执行
 
-[跳到 user/sh.c 第 83 行](../user/sh.c#83)
-`runcmd()` 函数处理重定向命令，首先执行重定向操作
-
-[跳到 user/sh.c 第 85 行](../user/sh.c#85)
-关闭文件描述符 1 (标准输出)
-
-[跳到 user/sh.c 第 86 行](../user/sh.c#86)
-打开文件 `x`，使用 `O_WRONLY|O_CREATE|O_TRUNC` 模式，这将创建或截断文件
-
-[跳到 user/sh.c 第 90 行](../user/sh.c#90)
-递归执行子命令 `echo "hi"`
+- [`runcmd()`](../user/sh.c#L224)（在子进程中执行）
+  - 重定向分支处理 `struct redircmd`
+    - [关闭目标文件描述符 1](../user/sh.c#L276)
+    - [使用 `open("x", O_WRONLY|O_CREATE|O_TRUNC)` 打开/创建文件](../user/sh.c#L281)
+    - [递归调用 `runcmd()` 执行子命令 `execcmd`](../user/sh.c#L290)
 
 ## 2. Echo 程序执行
 
 ### 2.1 程序加载
 
-[跳到 kernel/sysfile.c 第 435 行](../kernel/sysfile.c#435)
-`sys_exec()` 系统调用加载并执行 echo 程序
-
-[跳到 kernel/exec.c 第 27 行](../kernel/exec.c#27)
-`kexec()` 函数负责加载 ELF 格式的 echo 程序到内存
+- [`runcmd()` → `fork1()` 子进程执行 `exec`](../kernel/sysfile.c#L435)
+  - [`sys_exec()`](../kernel/sysfile.c#L435) 解析用户参数，准备内核数组
+    - [`kexec()`](../kernel/exec.c#L27) 加载 ELF 可执行文件到新页表
 
 ### 2.2 输出数据
 
-[跳到 user/echo.c 第 11 行](../user/echo.c#11)
-echo 程序通过 `write(1, argv[i], strlen(argv[i]))` 系统调用写入数据到文件描述符 1
-
-[跳到 kernel/syscall.c 第 174 行](../kernel/syscall.c#174)
-`syscall()` 函数分发系统调用，根据系统调用号调用相应的处理函数
-
-[跳到 kernel/syscall.c 第 159 行](../kernel/syscall.c#159)
-系统调用号 16 对应 `sys_write` 函数
+- [`echo` 用户程序](../user/echo.c#L11)
+  - 逐个参数调用 `write(1, argv[i], strlen(argv[i]))`
+    - [陷入内核，经 `syscall()` 分发](../kernel/syscall.c#L175)
+      - 系统调用号 16 → [`sys_write`](../kernel/syscall.c#L160)
 
 ## 3. 文件写入流程
 
 ### 3.1 系统调用处理
 
-[跳到 kernel/sysfile.c 第 83 行](../kernel/sysfile.c#83)
-`sys_write()` 函数处理写操作
-
-[跳到 kernel/sysfile.c 第 91 行](../kernel/sysfile.c#91)
-调用 `filewrite()` 函数执行实际的文件写入
+- [`sys_write()`](../kernel/sysfile.c#L83)
+  - 解析参数 `buf`、`n`、`fd`
+  - [调用 `filewrite()` 完成核心逻辑](../kernel/sysfile.c#L94)
 
 ### 3.2 文件写入实现
 
-[跳到 kernel/file.c 第 135 行](../kernel/file.c#135)
-`filewrite()` 函数处理文件写入，对于 inode 类型文件：
-
-[跳到 kernel/file.c 第 160 行](../kernel/file.c#160)
-开始一个日志事务 `begin_op()`
-
-[跳到 kernel/file.c 第 161 行](../kernel/file.c#161)
-锁定文件 inode
-
-[跳到 kernel/file.c 第 162 行](../kernel/file.c#162)
-调用 `writei()` 函数写入数据到 inode
-
-[跳到 kernel/file.c 第 164 行](../kernel/file.c#164)
-解锁文件 inode
-
-[跳到 kernel/file.c 第 165 行](../kernel/file.c#165)
-结束日志事务 `end_op()`
+- [`filewrite()`](../kernel/file.c#L135)
+  - `FD_PIPE`：调用 `pipewrite()`
+  - `FD_DEVICE`：调用设备表写函数
+  - `FD_INODE` 分支：
+    - [启动日志事务 `begin_op()`](../kernel/file.c#L160)
+    - [锁定 inode `ilock()`](../kernel/file.c#L161)
+    - [调用 `writei()` 将数据写入磁盘块](../kernel/file.c#L162)
+    - [解锁 inode `iunlock()`](../kernel/file.c#L164)
+    - [结束日志事务 `end_op()`](../kernel/file.c#L165)
 
 ### 3.3 Inode 写入
 
-[跳到 kernel/fs.c 第 548 行](../kernel/fs.c#548)
-`writei()` 函数负责将数据写入 inode
-
-[跳到 kernel/fs.c 第 560 行](../kernel/fs.c#560)
-通过 `bmap()` 函数获取文件块对应的磁盘块号
-
-[跳到 kernel/fs.c 第 563 行](../kernel/fs.c#563)
-通过 `bread()` 函数读取磁盘块到缓冲区
-
-[跳到 kernel/fs.c 第 565 行](../kernel/fs.c#565)
-通过 `either_copyin()` 函数将数据从用户空间复制到缓冲区
-
-[跳到 kernel/fs.c 第 570 行](../kernel/fs.c#570)
-通过 `log_write()` 函数将缓冲区标记为需要写入日志
-
-[跳到 kernel/fs.c 第 571 行](../kernel/fs.c#571)
-释放缓冲区
-
-[跳到 kernel/fs.c 第 575 行](../kernel/fs.c#575)
-更新文件大小
-
-[跳到 kernel/fs.c 第 580 行](../kernel/fs.c#580)
-通过 `iupdate()` 函数更新 inode 元数据到磁盘
+- [`writei()`](../kernel/fs.c#L669)
+  - 校验偏移与长度
+  - 循环处理每个目标块
+    - [`bmap()` 映射逻辑块号](../kernel/fs.c#L685)
+    - [`bread()` 获取缓冲区](../kernel/fs.c#L689)
+    - [`either_copyin()` 将用户数据写入缓存](../kernel/fs.c#L693)
+    - [`log_write()` 把缓冲区加入事务](../kernel/fs.c#L700)
+    - [`brelse()` 释放缓冲区](../kernel/fs.c#L702)
+  - 更新 inode 尺寸并 [`iupdate()` 写回元数据](../kernel/fs.c#L711)
 
 ## 4. 日志系统处理
 
 ### 4.1 日志事务开始
 
-[跳到 kernel/log.c 第 128 行](../kernel/log.c#128)
-`begin_op()` 函数开始一个日志事务
-
-[跳到 kernel/log.c 第 130 行](../kernel/log.c#130)
-获取日志锁
-
-[跳到 kernel/log.c 第 138 行](../kernel/log.c#138)
-增加正在进行的文件系统操作计数
-
-[跳到 kernel/log.c 第 139 行](../kernel/log.c#139)
-释放日志锁
+- [`begin_op()`](../kernel/log.c#L168)
+  - [获取日志锁](../kernel/log.c#L171)
+  - [等待提交或空间充足](../kernel/log.c#L181)
+  - [增加 `log.outstanding` 并释放锁](../kernel/log.c#L183)
 
 ### 4.2 日志写入
 
-[跳到 kernel/log.c 第 216 行](../kernel/log.c#216)
-`log_write()` 函数将修改的缓冲区添加到日志中
-
-[跳到 kernel/log.c 第 220 行](../kernel/log.c#220)
-获取日志锁
-
-[跳到 kernel/log.c 第 227-234 行](../kernel/log.c#227)
-检查块是否已在日志中，如果不在则添加
-
-[跳到 kernel/log.c 第 232 行](../kernel/log.c#232)
-增加缓冲区引用计数，防止被回收
-
-[跳到 kernel/log.c 第 233 行](../kernel/log.c#233)
-增加日志中的块计数
-
-[跳到 kernel/log.c 第 235 行](../kernel/log.c#235)
-释放日志锁
+- [`log_write()`](../kernel/log.c#L279)
+  - [获取日志锁](../kernel/log.c#L284)
+  - [查找或追加块号到 `log.lh.block[]`](../kernel/log.c#L293)
+    - 如果是新增条目：[`bpin()` 固定缓冲区](../kernel/log.c#L302) 并递增 `log.lh.n`
+  - [释放日志锁](../kernel/log.c#L307)
 
 ### 4.3 日志事务提交
 
-[跳到 kernel/log.c 第 148 行](../kernel/log.c#148)
-`end_op()` 函数结束日志事务
-
-[跳到 kernel/log.c 第 152 行](../kernel/log.c#152)
-获取日志锁
-
-[跳到 kernel/log.c 第 153 行](../kernel/log.c#153)
-减少正在进行的文件系统操作计数
-
-[跳到 kernel/log.c 第 157-158 行](../kernel/log.c#157)
-如果没有其他正在进行的操作，准备提交
-
-[跳到 kernel/log.c 第 170 行](../kernel/log.c#170)
-调用 `commit()` 函数提交日志
+- [`end_op()`](../kernel/log.c#L192)
+  - [获取日志锁并递减 `log.outstanding`](../kernel/log.c#L197)
+  - 如果归零则设置 `log.committing = 1` 并解锁
+    - [调用 `commit()` 执行最终写入](../kernel/log.c#L218)
+  - [在提交后重置状态并唤醒等待者](../kernel/log.c#L205)
 
 ### 4.4 日志提交过程
 
-[跳到 kernel/log.c 第 195 行](../kernel/log.c#195)
-`commit()` 函数执行实际的日志提交
-
-[跳到 kernel/log.c 第 198 行](../kernel/log.c#198)
-`write_log()` 将修改的块从缓存写入日志
-
-[跳到 kernel/log.c 第 199 行](../kernel/log.c#199)
-`write_head()` 写入日志头到磁盘，这是真正的提交点
-
-[跳到 kernel/log.c 第 200 行](../kernel/log.c#200)
-`install_trans()` 将日志中的块复制到它们的最终位置
-
-[跳到 kernel/log.c 第 201-202 行](../kernel/log.c#201)
-清空日志并写入空的日志头
+- [`commit()`](../kernel/log.c#L256)
+  - 若 `log.lh.n > 0`
+    - [`write_log()` 将缓冲区写入日志区](../kernel/log.c#L260)
+    - [`write_head()` 更新日志头，完成提交](../kernel/log.c#L261)
+    - [`install_trans()` 把数据块刷新到目标位置](../kernel/log.c#L262)
+    - 清空 `log.lh` 并再次 [`write_head()` 清零日志](../kernel/log.c#L265)
 
 ## 5. 缓冲区管理
 
 ### 5.1 缓冲区读取
 
-[跳到 kernel/bio.c 第 117 行](../kernel/bio.c#117)
-`bread()` 函数读取磁盘块到缓冲区
-
-[跳到 kernel/bio.c 第 121 行](../kernel/bio.c#121)
-`bget()` 函数获取或分配缓冲区
-
-[跳到 kernel/bio.c 第 124-126 行](../kernel/bio.c#124)
-如果缓冲区无效，从磁盘读取数据
+- [`bread()`](../kernel/bio.c#L233)
+  - [`bget()`](../kernel/bio.c#L121) 获取缓存槽位
+  - 如果 `valid == 0`：调用 [`virtio_disk_rw(..., 0)` 从磁盘读取](../kernel/bio.c#L249)
 
 ### 5.2 缓冲区写入
 
-[跳到 kernel/bio.c 第 131 行](../kernel/bio.c#131)
-`bwrite()` 函数将缓冲区写入磁盘
-
-[跳到 kernel/bio.c 第 135 行](../kernel/bio.c#135)
-调用 `virtio_disk_rw()` 执行实际的磁盘写入
+- [`bwrite()`](../kernel/bio.c#L268)
+  - [调用 `virtio_disk_rw(..., 1)` 写入磁盘](../kernel/bio.c#L272)
 
 ### 5.3 缓冲区释放
 
-[跳到 kernel/bio.c 第 140 行](../kernel/bio.c#140)
-`brelse()` 函数释放锁定的缓冲区
-
-[跳到 kernel/bio.c 第 147-158 行](../kernel/bio.c#147)
-将缓冲区移动到 LRU 链表的头部，标记为最近使用
+- [`brelse()`](../kernel/bio.c#L278)
+  - [释放睡眠锁](../kernel/bio.c#L278)
+  - [在缓存链表中移动至头部，更新 `refcnt`](../kernel/bio.c#L291)
 
 ## 6. 文件创建过程
 
 ### 6.1 文件打开
 
-[跳到 kernel/sysfile.c 第 305 行](../kernel/sysfile.c#305)
-`sys_open()` 系统调用处理文件打开
-
-[跳到 kernel/sysfile.c 第 319 行](../kernel/sysfile.c#319)
-如果设置了 `O_CREATE` 标志，调用 `create()` 函数创建文件
+- [`sys_open()`](../kernel/sysfile.c#L305)
+  - 若 `O_CREATE`：调用 [`create()` 分配新 inode](../kernel/sysfile.c#L319)
+  - 否则 `namei()` 查找既有 inode
 
 ### 6.2 文件创建
 
-[跳到 kernel/sysfile.c 第 246 行](../kernel/sysfile.c#246)
-`create()` 函数创建新文件
-
-[跳到 kernel/sysfile.c 第 251 行](../kernel/sysfile.c#251)
-获取父目录 inode
-
-[跳到 kernel/sysfile.c 第 265 行](../kernel/sysfile.c#265)
-调用 `ialloc()` 分配新的 inode
-
-[跳到 kernel/sysfile.c 第 270-274 行](../kernel/sysfile.c#270)
-初始化 inode 并更新到磁盘
-
-[跳到 kernel/sysfile.c 第 282 行](../kernel/sysfile.c#282)
-在父目录中创建指向新 inode 的目录项
+- [`create()`](../kernel/sysfile.c#L246)
+  - [查找父目录 `nameiparent()`](../kernel/sysfile.c#L251)
+  - 如已存在同名文件则复用
+  - [调用 `ialloc()` 分配 inode](../kernel/sysfile.c#L265)
+  - 初始化 inode 并 `iupdate()`
+  - 若目录：创建 `.`、`..` 项
+  - [调用 `dirlink()` 把新 inode 写入父目录](../kernel/sysfile.c#L282)
 
 ### 6.3 Inode 分配
 
-[跳到 kernel/fs.c 第 208 行](../kernel/fs.c#208)
+[跳到 kernel/fs.c 第 241 行](../kernel/fs.c#L241)
 `ialloc()` 函数分配新的 inode
 
-[跳到 kernel/fs.c 第 216 行](../kernel/fs.c#216)
+[跳到 kernel/fs.c 第 251 行](../kernel/fs.c#L251)
 读取包含 inode 的磁盘块
 
-[跳到 kernel/fs.c 第 221-222 行](../kernel/fs.c#221)
+[跳到 kernel/fs.c 第 258-260 行](../kernel/fs.c#L258)
 标记 inode 为已分配并写入日志
 
-[跳到 kernel/fs.c 第 224 行](../kernel/fs.c#224)
+[跳到 kernel/fs.c 第 263 行](../kernel/fs.c#L263)
 通过 `iget()` 获取 inode 的内存表示
 
 ## 总结

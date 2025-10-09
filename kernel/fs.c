@@ -668,6 +668,32 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // 如果返回值小于请求的 n，则表示出现了某种错误
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
+  // This helper moves raw bytes into an inode-backed file. It understands both
+  // user-space buffers and kernel-space buffers (controlled by `user_src` flag),
+  // extends the file when necessary, and tags each dirty buffer for inclusion in
+  // the write-ahead log so the caller does not have to perform explicit disk I/O.
+  //
+  // Abbreviation expansion:
+  // - `ip`: inode pointer (index node structure describing on-disk metadata).
+  // - `BSIZE`: block size (bytes per filesystem block).
+  // - `bmap`: block map routine that translates a logical block number into a
+  //   disk sector address, allocating blocks along the way.
+  // - `bp`: buffer pointer that wraps a cached disk block.
+  //
+  // High-level steps:
+  // 1. Validate that the write does not wrap around the address space or exceed
+  //    the per-file `MAXFILE` block limit.
+  // 2. Iterate block by block, using `bmap` (block map) to ensure backing space
+  //    exists.
+  // 3. Bring the block into cache with `bread`, copy bytes from the user or
+  //    kernel source via `either_copyin`, and mark the buffer dirty with
+  //    `log_write` so the log layer captures the change.
+  // 4. Release each buffer, update the inode size when the write extends past
+  //    the previous end-of-file, and persist the inode metadata with `iupdate`
+  //    (inode update).
+  //
+  // Return value mirrors the number of bytes successfully copied; any partial
+  // failure truncates the loop and reports the completed prefix.
   uint tot, m;
   struct buf *bp;
 

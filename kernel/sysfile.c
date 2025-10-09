@@ -85,6 +85,24 @@ sys_write(void)
   struct file *f;
   int n;
   uint64 p;
+
+  // This system call handler copies the write arguments out of the trap frame,
+  // translates them into kernel-level objects, and delegates the actual work
+  // to the higher level file layer.
+  //
+  // Processing steps:
+  // 1. `argaddr` (argument address) fetches the user virtual address that
+  //    points to the buffer containing the bytes to write.
+  // 2. `argint` (argument integer) fetches the requested byte count.
+  // 3. `argfd` (argument file descriptor) resolves the user supplied file
+  //    descriptor (FD, file descriptor) into a struct file pointer while
+  //    validating access rights.
+  // 4. `filewrite` performs the format-specific write, including logging for
+  //    inode-backed files.
+  //
+  // Return value:
+  // - Number of bytes written on success.
+  // - `-1` if argument decoding fails or the underlying write reports an error.
   
   argaddr(1, &p);
   argint(2, &n);
@@ -310,6 +328,27 @@ sys_open(void)
   struct inode *ip;
   int n;
 
+  // The open system call backs the shell redirection described in the
+  // filesystem walkthrough. It resolves the path provided by user space,
+  // optionally creates the inode, and installs a fresh file descriptor
+  // (FD, file descriptor) in the calling process table.
+  //
+  // Abbreviation expansion:
+  // - `omode`: open mode bit mask supplied by the application (e.g. `O_CREATE`,
+  //   `O_RDWR`, `O_TRUNC` - truncate).
+  //
+  // High-level flow:
+  // 1. Copy the pathname and mode bits from the user trap frame.
+  // 2. Enter a filesystem transaction via `begin_op` so any inode allocation
+  //    participates in the log.
+  // 3. If `O_CREATE` (open create) is set, call `create` to allocate a brand new
+  //    inode, otherwise locate the existing inode with `namei` (name inode).
+  // 4. Lock the inode, reject directory opens that are inconsistent with the
+  //    requested mode, and set up a struct file with `filealloc`.
+  // 5. Hand the struct file to `fdalloc` (file descriptor allocate) so the
+  //    process receives a small integer handle.
+  // 6. On any failure, unwind the partially initialised state and return `-1`.
+
   argint(1, &omode);
   if((n = argstr(0, path, MAXPATH)) < 0)
     return -1;
@@ -437,6 +476,25 @@ sys_exec(void)
   char path[MAXPATH], *argv[MAXARG];
   int i;
   uint64 uargv, uarg;
+
+  // The exec system call replaces the current process image with a new user
+  // program. This wrapper translates user addresses into kernel buffers before
+  // delegating to `kexec` (kernel exec).
+  //
+  // Step-by-step:
+  // 1. Fetch the user-space pointer to the argument vector (`uargv`) and the
+  //    pathname into a kernel buffer.
+  // 2. Iterate over the argument vector, copying each argument string into a
+  //    kernel-allocated page so faults cannot occur while the address space is
+  //    being torn down.
+  // 3. Invoke `kexec`, which loads the ELF (Executable and Linkable Format)
+  //    image, builds a fresh page table, and sets up the initial user stack.
+  // 4. Regardless of success or failure, free any temporary argument buffers.
+  //
+  // Return value:
+  // - On success, `kexec` returns the new argument count (return to user space
+  //   never happens because the trap frame is replaced).
+  // - On failure, the call unwinds and returns `-1` to the caller.
 
   argaddr(1, &uargv);
   if(argstr(0, path, MAXPATH) < 0) {
