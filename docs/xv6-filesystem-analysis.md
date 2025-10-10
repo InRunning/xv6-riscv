@@ -206,9 +206,10 @@
 
         -   参数数组被拷贝到内核分配的 `[MAXARG][MAXPATH]` 缓冲区，保证在切换地址空间后仍可访问。
 
-        -   [`namei()`](../kernel/fs.c#L933) 使用当前工作目录解析 `echo` 路径，获取对应的 `inode`；若失败，`sys_exec()` 立即返回 `-1` 给用户态。
 
     -   解析完成后，`sys_exec()` 调用 [`kexec()`](../kernel/exec.c#L44) 构建新的用户地址空间。
+
+        
 
         -   先读取 ELF 头 [`ELFHDR`](../kernel/exec.c#L49)，校验 `magic` 和程序头数量，避免加载非法文件。
 
@@ -472,6 +473,14 @@
 
     -   [调用 `iget()` 获取内存中的 inode 表项](../kernel/fs.c#L263)
 
+
+
+### 6.4 路径解析：`namex()` / `namei()` / `nameiparent()`
+
+-   [`namex()`](../kernel/fs.c#L877) 负责核心路径遍历：调用 `skipelem()` 逐段提取目录名，按需从根（`/`）或当前工作目录（`myproc()->cwd`）出发，锁定当前 inode (`ilock`)、确认其为目录，再用 [`dirlookup()`](../kernel/fs.c#L820) 找到下一层；`nameiparent` 标志为 1 时在处理到最后一段名字前返回父目录。
+-   [`namei()`](../kernel/fs.c#L937) 是最常见的包装：`namex(path, 0, tmp)`，目的是拿到目标文件/目录的 inode，失败返回 `0`。
+-   [`nameiparent()`](../kernel/fs.c#L944) 为创建、删除等操作提供父目录和末级文件名：调用 `namex(path, 1, name)`，成功时返回父 inode，并把最后一段名字写入调用者提供的 `name[DIRSIZ]` 缓冲区。
+-   解析过程中若某一层查找失败会通过 `iunlockput()` 释放当前 inode 并返回 `0`；这些函数可能触发 `iput()`，因此必须在日志事务内部调用，保证 inode 生命周期操作与日志一致。
 
 
 ## 总结

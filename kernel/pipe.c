@@ -19,6 +19,7 @@ struct pipe {
   int writeopen;  // write fd is still open
 };
 
+// Allocate a pipe structure and initialize the paired file descriptors.
 int
 pipealloc(struct file **f0, struct file **f1)
 {
@@ -55,6 +56,7 @@ pipealloc(struct file **f0, struct file **f1)
   return -1;
 }
 
+// Close one end of the pipe and free it when both ends are closed.
 void
 pipeclose(struct pipe *pi, int writable)
 {
@@ -80,6 +82,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   struct proc *pr = myproc();
 
   acquire(&pi->lock);
+  // Try to copy until we exhaust input or the buffer fills up.
   while(i < n){
     if(pi->readopen == 0 || killed(pr)){
       release(&pi->lock);
@@ -102,6 +105,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   return i;
 }
 
+// Copy data out of the pipe into user space, waiting if the pipe is empty.
 int
 piperead(struct pipe *pi, uint64 addr, int n)
 {

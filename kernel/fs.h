@@ -46,7 +46,7 @@ struct dinode {
 // 每块的位图位数
 #define BPB           (BSIZE*8)
 
-// 包含块b的对应位的空闲位图块
+// 包含块b的对应位的空闲位图块，计算：块号b所在的位图块索引(b/BPB)加上位图起始块号bmapstart
 #define BBLOCK(b, sb) ((b)/BPB + sb.bmapstart)
 
 // 目录是一个包含一系列dirent结构的文件
@@ -57,4 +57,3 @@ struct dirent {
   ushort inum;
   char name[DIRSIZ] __attribute__((nonstring));
 };
-

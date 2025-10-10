@@ -5,30 +5,21 @@
 int
 main(int argc, char *argv[])
 {
-  // The echo user program writes each argument to standard output.
-  // Expanded abbreviations:
-  // - `argc`: argument count supplied by the exec framework.
-  // - `argv`: argument vector (array of C strings) provided by the shell.
-  //
-  // Execution steps:
-  // 1. Skip index 0 because it stores the program name.
-  // 2. For every argument, emit it with `write` (system call that copies bytes
-  //    to the file descriptor). File descriptor 1 always denotes standard
-  //    output.
-  // 3. Separate adjacent arguments with a single space, and terminate the
-  //    sequence with a newline so redirections capture a whole line.
-  //
-  // Error handling is deferred to the kernel: `write` returns a byte count or
-  // `-1`, but xv6 tools ignore short writes in this simple utility.
-  int i;
+  // echo 用户程序会把每个命令行参数写到标准输出(文件描述符 1)。
+  // 缩写说明：argc(Argument Count 参数个数)、argv(Argument Vector 参数向量字符串数组)。
+  int i; // i(Index 索引) 用于遍历参数
 
+  // 从 1 开始跳过 argv[0]（程序名），依次打印参数。
   for(i = 1; i < argc; i++){
-    write(1, argv[i], strlen(argv[i]));
+    // write(fd, buf, len)：将缓冲区内容写到文件描述符。
+    write(1, argv[i], strlen(argv[i])); // fd=1 → stdout 标准输出
     if(i + 1 < argc){
+      // 参数之间输出空格
       write(1, " ", 1);
     } else {
+      // 最后一个参数后输出换行
       write(1, "\n", 1);
     }
   }
-  exit(0);
+  exit(0); // 正常退出
 }

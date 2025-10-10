@@ -117,15 +117,26 @@ balloc(uint dev)
 static void
 bfree(int dev, uint b)
 {
-  struct buf *bp;
-  int bi, m;
+  struct buf *bp; // bp(Buffer Pointer 缓冲区指针)
+  int bi, m;      // bi(Bitmap Index 位图索引)、m(Mask 掩码)
 
+  // 位图结构说明：
+  //   - 磁盘按 BPB (Blocks Per Bitmap block) 为单位划分，每个 bit 描述一个数据块的占用状态；
+  //   - `BBLOCK(b, sb)` 给出块号 b 对应的位图所在磁盘块号；等价于 (b / BPB) + bmapstart
+  //   - `bi` 表示 b 在该位图块内的序号，`bi/8` 找到具体字节，`bi%8` 决定字节中的具体比特位。
+  //
+  // 释放流程：
+  //   1. 读出位图块；
+  //   2. 检查目标 bit 是否已经清零（若已为 0，说明重复释放，直接 panic）；
+  //   3. 置 0 后调用 `log_write` 把修改记入日志，以保证事务一致性；
+  //   4. 释放缓冲区。
   // 读取包含块 b 的位图块
-  bp = bread(dev, BBLOCK(b, sb));
+  bp = bread(dev, BBLOCK(b, sb)); // bp(Buffer Pointer 缓冲区指针) 指向位图块的缓存
+  // 每个 bit 对应一个物理块：先计算目标块在位图中的编号（bi），再定位它所在的字节和比特位。
   // 计算块在位图中的索引
-  bi = b % BPB;
+  bi = b % BPB;                   // bi(Bitmap Index 位图索引) 表示目标块在该位图块中的序号
   // 计算位掩码
-  m = 1 << (bi % 8);
+  m = 1 << (bi % 8);              // m(Mask 掩码) 定位目标比特位
   // 检查块是否已经是空闲的
   if ((bp->data[bi / 8] & m) == 0)
     panic("freeing free block");
@@ -300,7 +311,7 @@ void iupdate(struct inode *ip)
 static struct inode *
 iget(uint dev, uint inum)
 {
-  struct inode *ip, *empty;
+  struct inode *ip, *empty; // ip为inode pointer(索引节点指针)缩写，empty指向空闲槽位
 
   // 获取 inode 表锁
   acquire(&itable.lock);
@@ -341,7 +352,7 @@ iget(uint dev, uint inum)
 // 增加 ip 的引用计数
 // 返回 ip 以支持 ip = idup(ip1) 的用法
 struct inode *
-idup(struct inode *ip)
+idup(struct inode *ip) // ip为inode pointer(Index Node 指针)的缩写
 {
   // 获取 inode 表锁
   acquire(&itable.lock);
@@ -393,7 +404,7 @@ void ilock(struct inode *ip)
 // 解锁给定的 inode
 void iunlock(struct inode *ip)
 {
-  // 检查 inode 是否有效且持有锁
+  // 检查 inode 是否有效且当前调用者确实持有 ip->lock 睡眠锁
   if (ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
     panic("iunlock");
 
@@ -409,10 +420,10 @@ void iunlock(struct inode *ip)
 // 以防它需要释放 inode
 void iput(struct inode *ip)
 {
-  // 获取 inode 表锁
+  // 获取 inode table 锁
   acquire(&itable.lock);
 
-  // 检查是否是最后一个引用且 inode 没有链接
+  // 检查是否是最后一个引用且 inode 没有链接（nlink 为目录项引用计数）
   if (ip->ref == 1 && ip->valid && ip->nlink == 0)
   {
     // inode 没有链接且没有其他引用：截断并释放
@@ -625,8 +636,8 @@ void stati(struct inode *ip, struct stat *st)
 // 否则，dst 是内核地址
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
-  uint tot, m;
-  struct buf *bp;
+  uint tot, m;         // tot(Total 累计已处理字节数)、m(Chunk Size 本次块内处理字节数)
+  struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向缓存的磁盘块
 
   // 检查偏移量是否有效
   if (off > ip->size || off + n < off)
@@ -694,8 +705,8 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   //
   // Return value mirrors the number of bytes successfully copied; any partial
   // failure truncates the loop and reports the completed prefix.
-  uint tot, m;
-  struct buf *bp;
+  uint tot, m;         // tot(Total bytes 累计传输的字节数)、m(Chunk size 本轮处理字节数)
+  struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向当前缓存的磁盘块
 
   // 检查偏移量是否有效
   if (off > ip->size || off + n < off)
@@ -790,7 +801,7 @@ int dirlink(struct inode *dp, char *name, uint inum)
 {
   int off;
   struct dirent de;
-  struct inode *ip;
+  struct inode *ip; // ip为inode pointer(Index Node 指针)的缩写
 
   // 检查名称是否已存在
   if ((ip = dirlookup(dp, name, 0)) != 0)
@@ -876,7 +887,7 @@ skipelem(char *path, char *name)
 static struct inode *
 namex(char *path, int nameiparent, char *name)
 {
-  struct inode *ip, *next;
+  struct inode *ip, *next; // ip为当前inode pointer(Index Node 指针)，next为下一层inode指针
 
   // 如果路径为空字符串，默认从当前目录开始解析
   // （nameiparent 模式需要依旧走完整个流程来捕获父目录）

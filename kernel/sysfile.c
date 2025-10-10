@@ -146,12 +146,12 @@ sys_write(void)
   //
   // 这正是kernel/syscall.c中case 1: return p->trapframe->a1;的具体应用场景
   // 在echo "hi" > x命令中，write系统调用的a1寄存器存储"hi\n"字符串的地址
-  argaddr(1, &p);
-  argint(2, &n);
-  if (argfd(0, 0, &f) < 0)
-    return -1;
+  argaddr(1, &p);        // argaddr(Argument Address 参数地址解析) 读取第2个参数：用户缓冲区指针 p(Pointer 指针)
+  argint(2, &n);         // argint(Argument Integer 参数整数解析) 读取第3个参数：n(Number 字节数)
+  if (argfd(0, 0, &f) < 0) // argfd(Argument File Descriptor 参数文件描述符解析) 解析第1个参数，填充 f(File 文件对象)
+    return -1;           // 若文件描述符无效，则返回 -1 表示失败
 
-  return filewrite(f, p, n);
+  return filewrite(f, p, n); // filewrite(File Write 文件写入) 执行实际写操作，返回写入的字节数或出错码
 }
 
 uint64

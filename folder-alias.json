@@ -27,9 +27,15 @@
         "description": "初始化内核"
     },
     "kernel/fs.c": {
-        "description": "文件系统"
+        "description": "file system"
     },
     "kernel/exec.c": {
         "description": "shell执行"
+    },
+    "user/echo.c": {
+        "description": "echo应用程序"
+    },
+    "kernel/pipe.c": {
+        "description": "管道"
     }
 }

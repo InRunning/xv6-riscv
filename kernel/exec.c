@@ -63,7 +63,13 @@ kexec(char *path, char **argv)
   // 锁定inode，防止其他进程修改
   ilock(ip);
 
-  // 读取ELF文件头
+  // 读取ELF文件头。readi() 参数含义：
+  //   ip(Inode Pointer 索引节点指针) → 当前打开的可执行文件；
+  //   第2个参数 user_dst=0 → 目标缓冲区位于内核空间；
+  //   第3个参数 (uint64)&elf → 读取的数据放入 elf(ELF Header ELF头) 结构；
+  //   第4个参数 off=0 → 从文件开头开始读取；
+  //   第5个参数 n=sizeof(elf) → 读取 ELF 头的完整字节数。
+  // 若返回值不是 sizeof(elf)，说明文件短缺或读失败，直接跳转到错误处理。
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
 
