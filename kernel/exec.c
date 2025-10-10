@@ -43,14 +43,14 @@ int flags2perm(int flags)
 int
 kexec(char *path, char **argv)
 {
-  char *s, *last;         // string pointers for extracting filename
-  int i, off;             // index counter and file offset
-  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;  // argument count, process size, stack pointer, user stack array, stack base address
-  struct elfhdr elf;      // ELF header structure
-  struct inode *ip;       // inode pointer for file operations
-  struct proghdr ph;      // ELF program header structure
-  pagetable_t pagetable = 0, oldpagetable;  // new and old page tables
-  struct proc *p = myproc();  // current process pointer
+  char *s, *last;         // 用于提取文件名的字符串指针
+  int i, off;             // 迭代索引与文件偏移量
+  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;  // argc(Argument Count 参数个数)、sz(Size 进程内存大小)、sp(Stack Pointer 栈顶指针)、ustack用户栈(User Stack 用户栈)地址数组、stackbase栈基址
+  struct elfhdr elf;      // ELF (Executable and Linkable Format 可执行与可链接格式) 头部结构体
+  struct inode *ip;       // inode(Index Node 索引节点) 指针，用于文件操作
+  struct proghdr ph;      // ELF (Executable and Linkable Format 可执行与可链接格式) Program Header 程序头结构体
+  pagetable_t pagetable = 0, oldpagetable;  // 新旧页表指针
+  struct proc *p = myproc();  // 指向当前进程的指针
 
   // 开始文件系统操作
   begin_op();
@@ -81,7 +81,7 @@ kexec(char *path, char **argv)
     // 读取程序头
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
-    // 只处理需要加载的段(PT_LOAD)
+    // 只处理需要加载的段(PT_LOAD, Program Header Type Load 可加载类型)
     if(ph.type != ELF_PROG_LOAD)
       continue;
     // 检查内存大小不小于文件大小
@@ -143,10 +143,10 @@ kexec(char *path, char **argv)
     // 保存参数字符串在栈中的地址
     ustack[argc] = sp;
   }
-  // argv数组以null结尾
+  // argv(Argument Vector 参数向量) 数组以NULL结尾
   ustack[argc] = 0;
 
-  // 将ustack[]数组(argv指针数组)压入栈中
+  // 将ustack[]数组(argv, Argument Vector 参数向量 指针数组)压入栈中
   sp -= (argc+1) * sizeof(uint64);
   sp -= sp % 16;  // 保持16字节对齐
   if(sp < stackbase)
@@ -154,9 +154,9 @@ kexec(char *path, char **argv)
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
     goto bad;
 
-  // a0和a1包含传递给用户main(argc, argv)的参数
-  // argc通过系统调用返回值传递，它放在a0寄存器中
-  // argv指针数组的地址放在a1寄存器中
+  // a0和a1包含传递给用户main(argc, Argument Count 参数个数; argv, Argument Vector 参数向量)的参数
+  // argc(Argument Count 参数个数) 通过系统调用返回值传递，它放在a0寄存器中
+  // argv(Argument Vector 参数向量) 指针数组的地址放在a1寄存器中
   p->trapframe->a1 = sp;
 
   // 保存程序名用于调试
@@ -180,8 +180,8 @@ kexec(char *path, char **argv)
   // 释放旧页表
   proc_freepagetable(oldpagetable, oldsz);
 
-  // 返回参数个数argc，这个值最终会放在a0寄存器中，
-  // 作为main(argc, argv)的第一个参数
+  // 返回参数个数argc(Argument Count 参数个数)，这个值最终会放在a0寄存器中，
+  // 作为main(argc, Argument Count 参数个数; argv, Argument Vector 参数向量)的第一个参数
   return argc;
 
  bad:
@@ -199,7 +199,7 @@ kexec(char *path, char **argv)
 // 参数：
 //   pagetable: 目标页表
 //   va: 虚拟地址(必须页对齐)
-//   ip: 文件inode
+//   ip: 文件inode(Index Node 索引节点)
 //   offset: 文件中的偏移量
 //   sz: 段大小
 // 要求：

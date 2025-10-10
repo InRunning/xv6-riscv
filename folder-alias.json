@@ -30,6 +30,6 @@
         "description": "文件系统"
     },
     "kernel/exec.c": {
-        "description": "执行程序"
+        "description": "shell执行"
     }
 }
