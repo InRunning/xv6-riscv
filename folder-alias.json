@@ -37,5 +37,8 @@
     },
     "kernel/pipe.c": {
         "description": "管道"
+    },
+    "kernel/entry.S": {
+        "description": "qemu入口"
     }
 }
