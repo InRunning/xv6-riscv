@@ -3,6 +3,7 @@
 struct stat;
 // LINK kernel/syscall.c
 // system calls 系统调用，会跳转到kernel/syscall.c中的sys_xxx函数
+// [sys_calls](sys_calls)
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int *);

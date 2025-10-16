@@ -249,6 +249,7 @@ extern uint64 sys_close(void);
 // 即要写入数据的缓冲区地址。
 
 // 系统调用函数指针数组。数组的索引是 `syscall.h` 中定义的系统调用号。
+// [sys_calls](#sys_calls)
 static uint64 (*syscalls[])(void) = {
     [SYS_fork] sys_fork,
     [SYS_exit] sys_exit,
@@ -293,6 +294,7 @@ static uint64 (*syscalls[])(void) = {
 // - 系统调用参数：依次存储在a0-a5寄存器中（最多6个参数）
 // - 系统调用返回值：存储在a0寄存器中返回给用户程序
 // --------------------------------------------------------------------
+// [syscall](#syscall)
 void syscall(void)
 {
   int num;
