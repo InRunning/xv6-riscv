@@ -40,5 +40,8 @@
     },
     "kernel/entry.S": {
         "description": "qemu入口"
+    },
+    "user/ulib.c": {
+        "description": "基础函数"
     }
 }
