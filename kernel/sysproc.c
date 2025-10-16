@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "vm.h"
 
+// [sys_exit](#sys_exit)
 uint64
 sys_exit(void)
 {
@@ -16,18 +17,21 @@ sys_exit(void)
   return 0;  // not reached
 }
 
+// [sys_getpid](#sys_getpid)
 uint64
 sys_getpid(void)
 {
   return myproc()->pid;
 }
 
+// [sys_fork](#sys_fork)
 uint64
 sys_fork(void)
 {
   return kfork();
 }
 
+// [sys_wait](#sys_wait)
 uint64
 sys_wait(void)
 {
@@ -36,6 +40,7 @@ sys_wait(void)
   return kwait(p);
 }
 
+// [sys_sbrk](#sys_sbrk)
 uint64
 sys_sbrk(void)
 {
@@ -62,6 +67,7 @@ sys_sbrk(void)
   return addr;
 }
 
+// [sys_pause](#sys_pause)
 uint64
 sys_pause(void)
 {
@@ -84,6 +90,7 @@ sys_pause(void)
   return 0;
 }
 
+// [sys_kill](#sys_kill)
 uint64
 sys_kill(void)
 {
@@ -95,6 +102,7 @@ sys_kill(void)
 
 // return how many clock tick interrupts have occurred
 // since start.
+// [sys_uptime](#sys_uptime)
 uint64
 sys_uptime(void)
 {

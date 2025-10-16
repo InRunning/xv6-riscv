@@ -24,6 +24,7 @@
 //           在这里，ip指向一个uint64类型的变量，用于存储从用户空间获取的地址值
 // @return: 成功返回0，失败返回-1。
 // --------------------------------------------------------------------
+// [fetchaddr](#fetchaddr)
 int fetchaddr(uint64 addr, uint64 *ip)
 {
   struct proc *p = myproc();
@@ -43,6 +44,7 @@ int fetchaddr(uint64 addr, uint64 *ip)
 // @param max: 缓冲区的最大长度。
 // @return: 成功则返回字符串长度（不包括'\0'），失败返回-1。
 // --------------------------------------------------------------------
+// [fetchstr](#fetchstr)
 int fetchstr(uint64 addr, char *buf, int max)
 {
   struct proc *p = myproc();
@@ -71,6 +73,7 @@ int fetchstr(uint64 addr, char *buf, int max)
 // @param n: 参数的索引 (0-5)，对应a0到a5寄存器。
 // @return: 参数的值。
 // --------------------------------------------------------------------
+// [argraw](#argraw)
 static uint64
 argraw(int n)
 {
@@ -121,6 +124,7 @@ argraw(int n)
 // 对于getpid()系统调用（无参数），不需要使用此函数
 // 对于kill(pid)系统调用，使用argint(0, &pid)获取第一个参数
 // --------------------------------------------------------------------
+// [argint](#argint)
 void argint(int n, int *ip)
 {
   *ip = argraw(n);
@@ -145,6 +149,7 @@ void argint(int n, int *ip)
 // 对于read(fd, buf, n)系统调用，使用argaddr(1, &buf)获取第二个参数（缓冲区地址）
 // 对于write(fd, buf, n)系统调用，使用argaddr(1, &buf)获取第二个参数（缓冲区地址）
 // --------------------------------------------------------------------
+// [argaddr](#argaddr)
 void argaddr(int n, uint64 *ip)
 {
   // ip是Integer Pointer的缩写，表示指向整型（在此为uint64类型）的指针
@@ -169,6 +174,7 @@ void argaddr(int n, uint64 *ip)
 // 对于exec(filename, argv)系统调用，使用argstr(0, filename, sizeof(filename))获取第一个参数（文件名）
 // 对于open(filename, flags)系统调用，使用argstr(0, filename, sizeof(filename))获取第一个参数（文件名）
 // --------------------------------------------------------------------
+// [argstr](#argstr)
 int argstr(int n, char *buf, int max)
 {
   uint64 addr;

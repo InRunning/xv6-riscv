@@ -56,6 +56,7 @@ fdalloc(struct file *f)
   return -1;
 }
 
+// [sys_dup](#sys_dup)
 uint64
 sys_dup(void)
 {
@@ -76,6 +77,7 @@ sys_dup(void)
   return fd;
 }
 
+// [sys_read](#sys_read)
 uint64
 sys_read(void)
 {
@@ -110,6 +112,7 @@ sys_read(void)
   return fileread(f, p, n);
 }
 
+// [sys_write](#sys_write)
 uint64
 sys_write(void)
 {
@@ -154,6 +157,7 @@ sys_write(void)
   return filewrite(f, p, n); // filewrite(File Write 文件写入) 执行实际写操作，返回写入的字节数或出错码
 }
 
+// [sys_close](#sys_close)
 uint64
 sys_close(void)
 {
@@ -171,6 +175,7 @@ sys_close(void)
   return 0;
 }
 
+// [sys_fstat](#sys_fstat)
 uint64
 sys_fstat(void)
 {
@@ -200,6 +205,7 @@ sys_fstat(void)
 }
 
 // 创建路径 `new`，使其指向与 `old` 相同的 inode。
+// [sys_link](#sys_link)
 uint64
 sys_link(void)
 {
@@ -280,6 +286,7 @@ isdirempty(struct inode *dp)
   return 1; // 全部扫描完毕都为空，返回 1
 }
 
+// [sys_unlink](#sys_unlink)
 uint64
 sys_unlink(void)
 {
@@ -427,6 +434,7 @@ fail:
   return 0;
 }
 
+// [sys_open](#sys_open)
 uint64
 sys_open(void)
 {
@@ -523,6 +531,7 @@ sys_open(void)
   return fd;
 }
 
+// [sys_mkdir](#sys_mkdir)
 uint64
 sys_mkdir(void)
 {
@@ -542,6 +551,7 @@ sys_mkdir(void)
   return 0;
 }
 
+// [sys_mknod](#sys_mknod)
 uint64
 sys_mknod(void)
 {
@@ -565,6 +575,7 @@ sys_mknod(void)
   return 0;
 }
 
+// [sys_chdir](#sys_chdir)
 uint64
 sys_chdir(void)
 {
@@ -598,6 +609,7 @@ sys_chdir(void)
   return 0;
 }
 
+// [sys_exec](#sys_exec)
 uint64
 sys_exec(void)
 {
@@ -685,6 +697,7 @@ bad:
   return -1;
 }
 
+// [sys_pipe](#sys_pipe)
 uint64
 sys_pipe(void)
 {
