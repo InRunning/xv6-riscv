@@ -15,7 +15,7 @@ _entry:                          # 内核入口点标签
         mul a0, a0, a1         # mul: Multiply - 计算 (hartid + 1) * 4096，结果存入 a0
         add sp, sp, a0         # add: Add - 将计算出的偏移量加到 sp 上，设置每个 CPU 的栈顶
         # 跳转到 start.c 中的 start() 函数
-        # //LINK:kernel/start.c
+        # LINK: kernel/start.c
         call start             # call: 调用 start 函数，保存返回地址到 ra 寄存器
 spin:                           # 死循环标签
         j spin                 # j: Jump - 无条件跳转到 spin 标签，形成死循环
