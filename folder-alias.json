@@ -43,5 +43,11 @@
     },
     "user/ulib.c": {
         "description": "基础函数"
+    },
+    "kernel/file.c": {
+        "description": "文件操作"
+    },
+    "kernel/vm.c": {
+        "description": "虚拟内存管理"
     }
 }

@@ -105,11 +105,20 @@ sys_read(void)
   // - 这里argaddr(1, &p)就是获取a1寄存器的值，即buf缓冲区的地址
   //
   // 这正是kernel/syscall.c中case 1: return p->trapframe->a1;的具体应用场景
-  argaddr(1, &p);
-  argint(2, &n);
-  if (argfd(0, 0, &f) < 0)
-    return -1;
-  return fileread(f, p, n);
+
+  // 主要作用就是将内核中寄存器的值读取到用户空间的变量
+  argaddr(1, &p);           // 获取第二个参数：用户缓冲区指针 p(Pointer 指针)
+                            // argaddr(Argument Address 参数地址解析) 从用户空间读取缓冲区地址
+                            // 参数1对应RISC-V架构中的a1寄存器，存储read系统调用的第二个参数：缓冲区地址
+  argint(2, &n);            // 获取第三个参数：n(Number 字节数)
+                            // argint(Argument Integer 参数整数解析) 从用户空间读取要读取的字节数
+                            // 参数2对应RISC-V架构中的a2寄存器，存储read系统调用的第三个参数：字节数
+  if (argfd(0, 0, &f) < 0)  // 解析第一个参数：文件描述符，填充 f(File 文件对象)
+                            // argfd(Argument File Descriptor 参数文件描述符解析) 获取文件描述符对应的struct file
+                            // 参数0对应RISC-V架构中的a0寄存器，存储read系统调用的第一个参数：文件描述符
+    return -1;              // 若文件描述符无效，则返回 -1 表示失败
+  return fileread(f, p, n); // 执行实际读操作，返回读取的字节数或出错码
+                            // fileread(File Read 文件读取) 根据文件类型执行读取操作
 }
 
 // [sys_write](#sys_write)
@@ -149,10 +158,10 @@ sys_write(void)
   //
   // 这正是kernel/syscall.c中case 1: return p->trapframe->a1;的具体应用场景
   // 在echo "hi" > x命令中，write系统调用的a1寄存器存储"hi\n"字符串的地址
-  argaddr(1, &p);        // argaddr(Argument Address 参数地址解析) 读取第2个参数：用户缓冲区指针 p(Pointer 指针)
-  argint(2, &n);         // argint(Argument Integer 参数整数解析) 读取第3个参数：n(Number 字节数)
+  argaddr(1, &p);          // argaddr(Argument Address 参数地址解析) 读取第2个参数：用户缓冲区指针 p(Pointer 指针)
+  argint(2, &n);           // argint(Argument Integer 参数整数解析) 读取第3个参数：n(Number 字节数)
   if (argfd(0, 0, &f) < 0) // argfd(Argument File Descriptor 参数文件描述符解析) 解析第1个参数，填充 f(File 文件对象)
-    return -1;           // 若文件描述符无效，则返回 -1 表示失败
+    return -1;             // 若文件描述符无效，则返回 -1 表示失败
 
   return filewrite(f, p, n); // filewrite(File Write 文件写入) 执行实际写操作，返回写入的字节数或出错码
 }

@@ -1,21 +1,30 @@
 // ====================================================================
 // 1. INCLUDES & GLOBAL VARIABLES
 // ====================================================================
+// 包含参数定义头文件 (Parameter Header)
 #include "param.h"
+// 包含数据类型定义头文件 (Types Header)
 #include "types.h"
+// 包含内存布局定义头文件 (Memory Layout Header)
 #include "memlayout.h"
+// 包含可执行链接格式 (Executable and Linkable Format) 头文件
 #include "elf.h"
+// 包含 RISC-V 架构相关定义头文件
 #include "riscv.h"
+// 包含内核函数声明头文件 (Definitions Header)
 #include "defs.h"
+// 包含自旋锁定义头文件 (Spin Lock Header)
 #include "spinlock.h"
+// 包含进程相关定义头文件 (Process Header)
 #include "proc.h"
+// 包含文件系统相关定义头文件 (File System Header)
 #include "fs.h"
 
-// 内核页表，所有CPU共享
+// 内核页表 (Kernel Page Table)，所有 CPU 共享
 pagetable_t kernel_pagetable;
 
-extern char etext[];      // kernel.ld 中定义，指向内核代码段的末尾
-extern char trampoline[]; // trampoline.S 中定义，指向陷阱处理代码
+extern char etext[];      // kernel.ld 中定义，指向内核代码段的末尾 (End of Text)
+extern char trampoline[]; // trampoline.S 中定义，指向陷阱处理代码 (Trampoline)
 
 // ====================================================================
 // 2. FUNCTIONS
