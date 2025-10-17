@@ -958,7 +958,7 @@ int gettoken(char **ps, char *es, char **q, char **eq)
 
   // 确定标记类型 (Determine Token Type)
   // 根据当前字符设置返回值
-  ret = *s;
+  ret = *s; // 由于ret是int类型，会存储字符的ASCII码值
 
   // 根据当前字符进行不同的处理 (Process Based on Current Character)
   switch (*s)
@@ -1302,6 +1302,11 @@ parsepipe(char **ps, char *es)
     // 例如：在"ls | grep x"中，递归解析"grep x"
     // pipecmd(cmd, parsepipe(ps, es))创建一个管道命令结构
     // 将左侧命令和右侧命令连接起来
+    //    pipe
+    //   /    \
+    // A      pipe
+    //       /    \
+    //      B      C
     cmd = pipecmd(cmd, parsepipe(ps, es));
   }
 
@@ -1567,7 +1572,7 @@ parseexec(char **ps, char *es)
                        // 指向新创建的execcmd结构
 
   struct cmd *ret; // 通用命令结构体指针 (Generic Command Structure Pointer)
-                   // 用于返回的命令结构，可能是execcmd或包装在redircmd中的execcmd
+                   // 用于返回的命令结构，可能是execcmd或包装在redircmd中的execcmd，ret是返回值，相当于就是用接口隐藏具体的实现
 
   // 检查是否以左括号开头 (Check if Starts with Left Parenthesis)
   // 如果命令以左括号开头，说明这是一个块命令，需要调用parseblock解析
