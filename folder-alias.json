@@ -49,5 +49,8 @@
     },
     "kernel/vm.c": {
         "description": "虚拟内存管理"
+    },
+    "kernel/sysfile.c": {
+        "description": "系统文件"
     }
 }

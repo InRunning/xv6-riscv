@@ -1,5 +1,5 @@
 //
-// Support functions for system calls that involve file descriptors.
+// 涉及文件描述符的系统调用的支持函数。
 //
 
 #include "types.h"
@@ -25,7 +25,7 @@ void fileinit(void)
   initlock(&ftable.lock, "ftable"); // 初始化全局文件表锁，字符串标识锁名
 }
 
-// Allocate a file structure.
+// 分配一个文件结构。
 struct file *
 filealloc(void)
 {
@@ -45,7 +45,7 @@ filealloc(void)
   return 0;              // 返回0表示资源耗尽
 }
 
-// Increment ref count for file f.
+// 增加文件 f 的引用计数。
 struct file *
 filedup(struct file *f)
 {
@@ -57,7 +57,7 @@ filedup(struct file *f)
   return f;              // 返回同一个文件指针
 }
 
-// Close file f.  (Decrement ref count, close when reaches 0.)
+// 关闭文件 f。（递减引用计数，当计数达到 0 时关闭。）
 void fileclose(struct file *f)
 {
   struct file ff; // ff(File copy 文件副本) 用于在释放锁后完成清理工作
@@ -87,8 +87,8 @@ void fileclose(struct file *f)
   }
 }
 
-// Get metadata about file f.
-// addr is a user virtual address, pointing to a struct stat.
+// 获取文件 f 的元数据。
+// addr 是一个用户虚拟地址，指向一个 struct stat 结构体。
 int filestat(struct file *f, uint64 addr)
 {
   struct proc *p = myproc(); // p(Process 进程) 指向当前进程
@@ -106,8 +106,8 @@ int filestat(struct file *f, uint64 addr)
   return -1; // 对于管道等类型，无法提供 stat
 }
 
-// Read from file f.
-// addr is a user virtual address.
+// 从文件 f 读取。
+// addr 是一个用户虚拟地址。
 // f是文件描述符，从f读取，addr是用户虚拟地址，即要储存读取到的数据的地址，n是读取的字节数
 int fileread(struct file *f, uint64 addr, int n)
 {
@@ -141,32 +141,33 @@ int fileread(struct file *f, uint64 addr, int n)
   return r; // 返回读取的字节数或错误码
 }
 
-// Write to file f.
-// addr is a user virtual address.
+// 向文件 f 写入。
+// addr 是一个用户虚拟地址。
 int filewrite(struct file *f, uint64 addr, int n)
 {
-  // This routine is the single write entry point for every open file object.
-  // It fans out to different implementations based on `f->type` (file type),
-  // ensures the operation participates in the log (write-ahead logging), and
-  // keeps the file offset in sync.
+  // 这个例程是每个打开文件对象的单一写入入口点。
+  // 它根据 `f->type`（文件类型）分派到不同的实现，
+  // 确保操作参与日志（预写日志），并保持文件偏移同步。
   //
-  // Key abbreviations expanded:
-  // - `FD_PIPE`  : file descriptor backed by an in-memory pipe (First-In First-Out channel).
-  // - `FD_DEVICE`: file descriptor that proxies a character device.
-  // - `FD_INODE` : file descriptor that maps to an on-disk inode (index node).
+  // 关键缩写扩展：
+  // - `FD_PIPE`  : 由内存管道支持的文件描述符（先进先出通道）。
+  //               例如：pipe() 系统调用创建的管道，父进程通过 fork()
+  //               将管道文件描述符传递给子进程，实现进程间通信。
+  // - `FD_DEVICE`: 代理字符设备的文件描述符。
+  // - `FD_INODE` : 映射到磁盘 inode（索引节点）的文件描述符。
   //
-  // Control flow summary:
-  // 1. Reject the call if the file is not marked writable.
-  // 2. For pipes and devices, delegate to their specialised writer functions.
-  // 3. For inode-backed files:
-  //    a. Split the request into chunks so a single log transaction never
-  //       exceeds `MAXOPBLOCKS` (maximum operation blocks).
-  //    b. Surround each chunk with `begin_op` / `end_op` so the log layer can
-  //       reserve space and commit safely.
-  //    c. Lock the inode, call `writei` (write inode) to move bytes from user
-  //       space, advance the per-descriptor file offset, and release the lock.
-  // 4. Convert any partial failure into `-1`, otherwise bubble the byte count to
-  //    the caller.
+  // 控制流摘要：
+  // 1. 如果文件未标记为可写，则拒绝调用。
+  // 2. 对于管道和设备，委托给它们专门的写入函数。
+  // 3. 对于基于 inode 的文件：
+  //    a. 将请求分割成块，这样单个日志事务永远不会
+  //       超过 `MAXOPBLOCKS`（最大操作块数）。
+  //    b. 用 `begin_op` / `end_op` 包围每个块，这样日志层可以
+  //       安全地预留空间和提交。
+  //    c. 锁定 inode，调用 `writei`（写入 inode）将字节从用户空间
+  //       移动，推进每个描述符的文件偏移，并释放锁。
+  // 4. 将任何部分失败转换为 `-1`，否则将字节数冒泡到
+  //    调用者。
 
   int r, ret = 0; // r(Result 单次写入结果)、ret(Return 返回给调用者的总写入字节数)
 
@@ -185,17 +186,26 @@ int filewrite(struct file *f, uint64 addr, int n)
   }
   else if (f->type == FD_INODE)
   {
-    // write a few blocks at a time to avoid exceeding
-    // the maximum log transaction size, including
-    // i-node, indirect block, allocation blocks,
-    // and 2 blocks of slop for non-aligned writes.
+    // 一次写入几个块以避免超过
+    // 最大日志事务大小，包括
+    // i-node、间接块、分配块，
+    // 以及 2 个用于非对齐写入的冗余块。
     int max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE; // max(Maximum transaction size 单次日志事务可写字节上限)
-    int i = 0;                                         // i(Index 索引) 表示已写入偏移
+    // 公式解释：MAXOPBLOCKS - 1(i-node块) - 1(间接块) - 2(非对齐写入冗余块) = 可用于数据写入的块数
+    // 详细说明：
+    // 1. i-node块 (第1个1)：存储文件元数据的索引节点，包含文件类型、大小、数据块地址等信息
+    //    每个文件操作都需要修改i-node来更新文件大小和时间戳等元数据
+    // 2. 间接块 (第2个1)：当文件数据超过12个直接块(NDIRECT)时，需要间接块存储额外数据块的指针
+    //    xv6文件系统支持直接块+间接块的混合存储模式，间接块可以指向256个数据块(NINDIRECT=BSIZE/sizeof(uint))
+    // 3. 非对齐写入冗余块 (2个)：处理跨块边界的写入操作，确保数据完整性
+    //    当写入操作跨越多个块边界时，需要额外的块来处理碎片化写入，避免数据损坏
+    // 除以2的原因：每个数据块可能需要对应的间接块支持，实际可用数据块数约为总块数的一半
+    int i = 0; // i(Index 索引) 表示已写入偏移
     while (i < n)
     {
       int n1 = n - i; // n1(Chunk length 本轮写入长度)
       if (n1 > max)
-        n1 = max;
+        n1 = max;     // 限制单次写入长度不超过日志事务最大限制
 
       begin_op();                                           // 为每个分块写入开启日志事务
       ilock(f->ip);                                         // 锁住 inode，保证写入原子

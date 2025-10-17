@@ -622,9 +622,9 @@ sys_chdir(void)
 uint64
 sys_exec(void)
 {
-  char path[MAXPATH], *argv[MAXARG]; // `path` 缓冲路径字符串，`argv` 保存内核态参数指针数组
-  int i;                             // 遍历参数时的索引
-  uint64 uargv, uarg;                // `uargv` 指向用户态 argv 数组，`uarg` 是单个用户态参数指针
+  char path[MAXPATH], *argv[MAXARG]; // `path` 缓存可执行文件路径字符串，`argv` 保存内核态参数指针数组
+  int i;                             // 遍历参数时的循环索引变量
+  uint64 uargv, uarg;                // `uargv` 指向用户态 argv 数组地址，`uarg` 是单个用户态参数字符串地址
 
   // exec 系统调用：用一个新的用户程序替换当前进程的内存映像。
   // 这个包装函数先把用户态的指针转换为内核缓冲区，再调用 `kexec`（kernel exec 内核级 exec）。
@@ -658,7 +658,7 @@ sys_exec(void)
   //
   // 这正是kernel/syscall.c中case 1: return p->trapframe->a1;的具体应用场景
   // uargv 是用户态的 argv 数组的地址
-  argaddr(1, &uargv);
+  argaddr(1, &uargv);               // 获取用户态 argv 数组的地址，这是第二个参数
   // 从用户空间获取第一个参数（可执行文件路径）并将其复制到内核空间的缓冲区中
   // 参数说明：
   // - 0：表示获取系统调用的第0个参数（在RISC-V中对应a0寄存器）
@@ -666,44 +666,44 @@ sys_exec(void)
   // - MAXPATH：路径的最大长度限制，防止缓冲区溢出
   // 返回值检查：如果argstr返回值小于0，表示从用户空间获取参数失败
   // 失败原因可能是：用户提供的地址无效、路径字符串过长、或者没有读取权限等
-  if (argstr(0, path, MAXPATH) < 0)
+  if (argstr(0, path, MAXPATH) < 0) // 获取第一个参数：可执行文件路径字符串
   { // 参数 0：可执行文件路径
-    return -1;
+    return -1;                      // 获取失败，返回错误码 -1
   }
-  memset(argv, 0, sizeof(argv)); // 内核临时数组置空
-  for (i = 0;; i++)
+  memset(argv, 0, sizeof(argv));     // 内核临时参数数组置空，初始化所有指针为 NULL
+  for (i = 0;; i++)                 // 遍历用户提供的参数数组
   {
-    if (i >= NELEM(argv))
+    if (i >= NELEM(argv))           // 检查参数数目是否超过最大限制
     { // 参数数目超过限制
-      goto bad;
+      goto bad;                     // 超过限制，跳转到错误处理
     }
     if (fetchaddr(uargv + sizeof(uint64) * i, (uint64 *)&uarg) < 0)
-    { // 读取单个参数指针
-      goto bad;
+    { // 读取单个参数指针：从用户空间获取第 i 个参数的地址
+      goto bad;                     // 读取失败，跳转到错误处理
     }
-    if (uarg == 0)
+    if (uarg == 0)                  // 遇到参数数组的结尾 NULL 指针
     { // 遇到结尾 NULL
-      argv[i] = 0;
-      break;
+      argv[i] = 0;                  // 在内核数组中也设置 NULL 作为结束标记
+      break;                        // 结束循环
     }
-    argv[i] = kalloc(); // 为参数字符串分配一页
-    if (argv[i] == 0)
-      goto bad;
+    argv[i] = kalloc();             // 为参数字符串分配一页内存
+    if (argv[i] == 0)               // 内存分配失败
+      goto bad;                     // 跳转到错误处理
     if (fetchstr(uarg, argv[i], PGSIZE) < 0) // 把用户字符串拷贝到内核缓冲区
-      goto bad;
+      goto bad;                     // 字符串拷贝失败，跳转到错误处理
   }
 
-  int ret = kexec(path, argv); // 加载并执行新程序
+  int ret = kexec(path, argv);     // 调用内核执行函数，加载并执行新程序
 
-  for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]); // 释放临时参数内存
+  for (i = 0; i < NELEM(argv) && argv[i] != 0; i++) // 遍历所有已分配的参数内存
+    kfree(argv[i]);                // 释放临时分配的参数内存页面
 
-  return ret;
+  return ret;                      // 返回执行结果（成功时为参数个数，失败时为 -1）
 
-bad:
-  for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]); // 清理已分配的缓冲区
-  return -1;
+bad:                              // 错误处理标签
+  for (i = 0; i < NELEM(argv) && argv[i] != 0; i++) // 清理已分配的缓冲区
+    kfree(argv[i];                // 释放所有已分配的参数内存，防止内存泄漏
+  return -1;                      // 返回错误码 -1
 }
 
 // [sys_pipe](#sys_pipe)
