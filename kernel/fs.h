@@ -79,6 +79,9 @@ struct dinode {
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 // 每块的位图位数
+// BPB: Blocks Per Bitmap block（每个位图块管理的块数）
+// 计算逻辑：BSIZE * 8 = 每个块的字节数 * 每字节的位数 = 每个块的总位数
+// 每个位对应一个数据块的占用状态（1=已使用，0=空闲）
 #define BPB           (BSIZE*8)
 
 // 包含块b的对应位的空闲位图块，计算：块号b所在的位图块索引(b/BPB)加上位图起始块号bmapstart

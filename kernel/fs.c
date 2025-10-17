@@ -77,8 +77,8 @@ bzero(int dev, int bno)
 static uint
 balloc(uint dev)
 {
-  int b, bi, m;
-  struct buf *bp;
+  int b, bi, m;      // b(Block Number 块号)、bi(Bitmap Index 位图索引)、m(Mask 掩码)
+  struct buf *bp;    // bp(Buffer Pointer 缓冲区指针)
 
   bp = 0;
   // 遍历所有块，每次处理一个位图块（BPB 个块）
@@ -733,6 +733,19 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向当前缓存的磁盘块
 
   // 检查偏移量是否有效
+  //
+  // 这个检查确保两个关键条件：
+  // 1. off > ip->size: 写入起始偏移量不能超过当前文件大小
+  //    - 如果从文件末尾之后开始写入，这是不允许的
+  //    - 文件系统不支持"空洞"写入，必须连续写入
+  //
+  // 2. off + n < off: 检查算术溢出
+  //    - 当 n 很大时，off + n 可能会溢出，变成一个很小的值
+  //    - 例如：off = 0xFFFFFFFF, n = 1, off + n = 0 (溢出)
+  //    - 这种情况下，off + n < off 为 true，表示发生了溢出
+  //    - 溢出会导致错误的内存访问，必须防止
+  //
+  // 如果任一条件不满足，返回 -1 表示错误
   if (off > ip->size || off + n < off)
     return -1;
   // 检查是否会超过最大文件大小
@@ -743,6 +756,34 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   for (tot = 0; tot < n; tot += m, off += m, src += m)
   {
     // 获取包含偏移量的块地址
+    // 详细说明：
+    // 1. off / BSIZE: 计算逻辑块号
+    //    - off: 文件内的字节偏移量（从0开始）
+    //    - BSIZE: 每个磁盘块的大小（通常为1024字节）
+    //    - 除法运算将字节偏移量转换为块号
+    //    例如：如果 off=2048, BSIZE=1024，则块号为 2
+    //
+    // 2. bmap(ip, block_number): 块映射函数
+    //    - ip: 指向文件inode的指针，包含文件的元数据
+    //    - block_number: 逻辑块号（由 off/BSIZE 计算得出）
+    //    - 功能：将逻辑块号转换为实际的磁盘块地址
+    //    - 如果块尚未分配，会自动分配新块
+    //    - 支持直接块、间接块和双重间接块的映射
+    //
+    // 3. 返回值 addr:
+    //    - 成功时：返回磁盘块的实际地址（块号）
+    //    - 失败时：返回 0（表示磁盘空间不足）
+    //
+    // 4. 在文件读写中的作用：
+    //    - 这是文件系统实现的关键步骤，将逻辑文件位置转换为物理磁盘位置
+    //    - 为后续的磁盘I/O操作（bread/bwrite）提供目标地址
+    //    - 支持文件的随机访问，可以跳转到任意位置进行读写
+    //
+    // 5. 示例：
+    //    假设文件大小为 3072 字节，BSIZE=1024：
+    //    - 写入偏移量 0-1023：访问块 0
+    //    - 写入偏移量 1024-2047：访问块 1
+    //    - 写入偏移量 2048-3071：访问块 2
     uint addr = bmap(ip, off / BSIZE);
     if (addr == 0)
       break;
@@ -973,6 +1014,28 @@ namei(char *path)
 }
 
 // 将路径名转换为父目录 inode 和文件名
+//
+// 功能：解析路径，返回父目录的 inode，并将最终文件名复制到 name 参数中
+// 这个函数在需要创建、重命名或删除文件时特别有用，因为它提供了父目录的 inode
+//
+// 参数：
+//   path - 要解析的路径字符串
+//   name - 用于存储最终文件名的缓冲区，必须至少有 DIRSIZ 字节的空间
+//
+// 返回值：
+//   成功时返回父目录的 inode 指针，并将最终文件名复制到 name 参数中
+//   失败时返回 NULL（路径不存在或无法访问）
+//
+// 示例：
+//   nameiparent("/usr/rtm/xv6/fs.c", name)
+//     - 返回目录 /usr/rtm/xv6 的 inode
+//     - 将 "fs.c" 复制到 name 参数中
+//
+// 注意：
+//   - 调用者需要负责后续的 inode 锁定和释放
+//   - 此函数不检查文件权限
+//   - name 参数必须有足够的空间（至少 DIRSIZ 字节）
+//   - 内部调用 namex() 函数，设置 nameiparent=1 来获取父目录
 struct inode *
 nameiparent(char *path, char *name)
 {
