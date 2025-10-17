@@ -77,11 +77,11 @@ bzero(int dev, int bno)
 static uint
 balloc(uint dev)
 {
-  int b, bi, m;      // b(Block Number 块号)、bi(Bitmap Index 位图索引)、m(Mask 掩码)
-  struct buf *bp;    // bp(Buffer Pointer 缓冲区指针)
+  int b, bi, m;   // b(Block Number 块号)、bi(Bitmap Index 位图索引)、m(Mask 掩码)
+  struct buf *bp; // bp(Buffer Pointer 缓冲区指针)
 
   bp = 0;
-  // 遍历所有块，每次处理一个位图块（BPB 个块）
+  // 遍历所有块，每次处理一个位图块（BPB 个块）, BPB是每个位图块能管理的数据块数，sb.size是文件系统总块数
   for (b = 0; b < sb.size; b += BPB)
   {
     // 读取包含块 b 的位图块
@@ -89,7 +89,7 @@ balloc(uint dev)
     // 遍历位图块中的每个位
     for (bi = 0; bi < BPB && b + bi < sb.size; bi++)
     {
-      // 计算位掩码
+      // 计算位掩码， 将二进制数 1 向左移动 bi % 8 位，结果是一个只有特定比特位为1的掩码
       m = 1 << (bi % 8);
       // 检查块是否空闲（位为 0）
       if ((bp->data[bi / 8] & m) == 0)
@@ -134,9 +134,9 @@ bfree(int dev, uint b)
   bp = bread(dev, BBLOCK(b, sb)); // bp(Buffer Pointer 缓冲区指针) 指向位图块的缓存
   // 每个 bit 对应一个物理块：先计算目标块在位图中的编号（bi），再定位它所在的字节和比特位。
   // 计算块在位图中的索引
-  bi = b % BPB;                   // bi(Bitmap Index 位图索引) 表示目标块在该位图块中的序号
+  bi = b % BPB; // bi(Bitmap Index 位图索引) 表示目标块在该位图块中的序号
   // 计算位掩码
-  m = 1 << (bi % 8);              // m(Mask 掩码) 定位目标比特位
+  m = 1 << (bi % 8); // m(Mask 掩码) 定位目标比特位
   // 检查块是否已经是空闲的
   if ((bp->data[bi / 8] & m) == 0)
     panic("freeing free block");
@@ -367,10 +367,10 @@ idup(struct inode *ip) // ip为inode pointer(Index Node 指针)的缩写
 // 如果需要，从磁盘读取 inode
 void ilock(struct inode *ip)
 {
-  struct buf *bp;      // bp: Buffer Pointer (缓冲区指针)，指向从磁盘读取的包含目标inode的块的缓存
-                       // 用于临时存储从磁盘读取的块数据，后续通过dip访问该块中的特定inode
-  struct dinode *dip;  // dip: Disk INode Pointer (磁盘索引节点指针)，指向磁盘上inode的内存表示
-                       // 指向从磁盘读取的inode数据，包含文件的元数据（类型、大小、链接数、数据块地址等）
+  struct buf *bp;     // bp: Buffer Pointer (缓冲区指针)，指向从磁盘读取的包含目标inode的块的缓存
+                      // 用于临时存储从磁盘读取的块数据，后续通过dip访问该块中的特定inode
+  struct dinode *dip; // dip: Disk INode Pointer (磁盘索引节点指针)，指向磁盘上inode的内存表示
+                      // 指向从磁盘读取的inode数据，包含文件的元数据（类型、大小、链接数、数据块地址等）
 
   // 检查 inode 是否有效
   if (ip == 0 || ip->ref < 1)
@@ -413,7 +413,7 @@ void ilock(struct inode *ip)
     // bp->data[3]   -> inode 48-63
     // ...
     // dip 指向目标 inode 的内存表示，包含文件的元数据
-    //（类型、大小、链接数、数据块地址等）
+    // （类型、大小、链接数、数据块地址等）
     dip = (struct dinode *)bp->data + ip->inum % IPB;
     // 复制 inode 数据
     ip->type = dip->type;
@@ -667,8 +667,8 @@ void stati(struct inode *ip, struct stat *st)
 // 否则，dst 是内核地址
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
-  uint tot, m;         // tot(Total 累计已处理字节数)、m(Chunk Size 本次块内处理字节数)
-  struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向缓存的磁盘块
+  uint tot, m;    // tot(Total 累计已处理字节数)、m(Chunk Size 本次块内处理字节数)
+  struct buf *bp; // bp(Buffer Pointer 缓冲区指针)，指向缓存的磁盘块
 
   // 检查偏移量是否有效
   if (off > ip->size || off + n < off)
@@ -729,8 +729,8 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   //    并使用 `iupdate`（inode 更新）持久化 inode 元数据。
   //
   // 返回值反映成功复制的字节数；任何部分失败都会截断循环并报告已完成的字节数前缀。
-  uint tot, m;         // tot(Total bytes 累计传输的字节数)、m(Chunk size 本轮处理字节数)
-  struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向当前缓存的磁盘块
+  uint tot, m;    // tot(Total bytes 累计传输的字节数)、m(Chunk size 本轮处理字节数)
+  struct buf *bp; // bp(Buffer Pointer 缓冲区指针)，指向当前缓存的磁盘块
 
   // 检查偏移量是否有效
   //
