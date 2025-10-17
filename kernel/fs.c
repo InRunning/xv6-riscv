@@ -97,6 +97,8 @@ balloc(uint dev)
         // 标记块为已使用
         bp->data[bi / 8] |= m;
         // 将更改写入日志
+        // 将缓冲区的修改写入日志（Log Write）
+        // log_write: 日志写入函数，将缓冲区的修改记录到日志中，确保事务的原子性，只是记录块号
         log_write(bp);
         // 释放缓冲区
         brelse(bp);

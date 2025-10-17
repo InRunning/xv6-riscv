@@ -293,30 +293,23 @@ commit()
 // 记录块号并通过增加引用计数来固定缓存中的块
 // commit()/write_log()将执行实际的磁盘写入
 //
-// log_write()替代了bwrite()；典型用法是：
+// log_write() 替代了 bwrite()；典型用法是：
 //   bp = bread(...)
 //   modify bp->data[]
 //   log_write(bp)
 //   brelse(bp)
 //
-// Terminology:
-// - `log.lh`: log header structure that tracks every dirty block number queued
-//   for commit (`lh` stands for log header).
-// - `bpin`: buffer pin (prevent eviction) helper that increments the reference
-//   count inside the buffer cache.
-// - `log.outstanding`: count of active filesystem system calls so the log layer
-//   can detect when the final writer exits its critical section.
+// 术语说明：
+// - `log.lh`: 日志头结构，跟踪每个排队等待提交的脏块号（`lh` 代表日志头）。
+// - `bpin`: 缓冲区固定（防止回收）的辅助函数，用于增加缓冲区缓存内的引用计数。
+// - `log.outstanding`: 活动文件系统系统调用的数量，这样日志层可以检测到当最终写入者退出其临界区时。
 //
-// Control flow:
-// 1. Take the global log lock to serialize updates to the in-memory header.
-// 2. Reject attempts to enqueue beyond `LOGBLOCKS` (maximum blocks the log can
-//    hold) or writes that occur outside a transaction.
-// 3. Absorb duplicate block numbers so a single disk block appears only once in
-//    the transaction—later modifications simply reuse the earlier slot.
-// 4. Pin newly added buffers so the buffer cache cannot recycle them before the
-//    commit sequence completes.
-// 5. Release the lock; the caller can now drop its buffer reference with
-//    `brelse` (buffer release).
+// 控制流程：
+// 1. 获取全局日志锁，以序列化对内存头部的更新。
+// 2. 拒绝超出 `LOGBLOCKS`（日志可以容纳的最大块数）的入队尝试，或在事务外发生的写入。
+// 3. 吸收重复的块号，这样单个磁盘块在事务中只出现一次——后来的修改只是重用较早的槽位。
+// 4. 固定新添加的缓冲区，这样在提交序列完成之前，缓冲区缓存无法回收它们。
+// 5. 释放锁；调用者现在可以用 `brelse`（缓冲区释放）来丢弃其缓冲区引用。
 void log_write(struct buf *b)
 {
   int i;
@@ -324,9 +317,16 @@ void log_write(struct buf *b)
   // 获取日志锁
   acquire(&log.lock);
   // 检查事务是否过大
+  // 检查事务是否过大（Transaction Size Check）
+  // log.lh.n: 当前日志中记录的块数量
+  // LOGBLOCKS: 日志系统支持的最大块数（日志容量限制）
+  // 如果当前事务的块数超过日志容量限制，则触发 panic
   if (log.lh.n >= LOGBLOCKS)
     panic("too big a transaction");
-  // 检查是否在事务外调用
+  // 检查是否在事务外调用（Transaction Boundary Check）
+  // log.outstanding: 当前正在执行的文件系统系统调用数量（outstanding calls）
+  // 如果 outstanding < 1，表示没有活跃的事务，此时调用 log_write 是错误的
+  // 这确保了所有文件系统修改都必须在 begin_op() 和 end_op() 之间进行，都是防御性编程
   if (log.outstanding < 1)
     panic("log_write outside of trans");
 

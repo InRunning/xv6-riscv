@@ -247,94 +247,98 @@ alloc3_desc(int *idx)
 // 磁盘读写操作 ----
 void virtio_disk_rw(struct buf *b, int write)
 {
-  // 计算扇区号
+  // 计算扇区号：将块号转换为扇区号（每个扇区512字节）
   uint64 sector = b->blockno * (BSIZE / 512);
 
-  // 获取磁盘锁
+  // 获取磁盘锁：确保对磁盘结构的独占访问
   acquire(&disk.vdisk_lock);
 
   // 规范的第5.2节说，传统块操作使用三个描述符：
   // 一个用于类型/保留/扇区，一个用于数据，一个用于1字节状态结果。
 
-  // 分配三个描述符
+  // 分配三个描述符：为磁盘操作分配三个DMA描述符
   int idx[3];
   while (1)
   {
+    // 尝试分配三个描述符
     if (alloc3_desc(idx) == 0)
     {
+      // 分配成功，退出循环
       break;
     }
-    // 如果没有可用的描述符，等待
+    // 如果没有可用的描述符，等待其他进程释放描述符
     sleep(&disk.free[0], &disk.vdisk_lock);
   }
 
   // 格式化三个描述符
   // qemu的virtio-blk.c会读取它们
 
+  // 获取第一个描述符对应的请求缓冲区
   struct virtio_blk_req *buf0 = &disk.ops[idx[0]];
 
-  // 设置请求类型
+  // 设置请求类型：根据write参数决定是读还是写操作
   if (write)
-    buf0->type = VIRTIO_BLK_T_OUT; // 写磁盘
+    buf0->type = VIRTIO_BLK_T_OUT; // 写磁盘：设备从内存读取数据
   else
-    buf0->type = VIRTIO_BLK_T_IN; // 读磁盘
-  buf0->reserved = 0;
-  buf0->sector = sector;
+    buf0->type = VIRTIO_BLK_T_IN; // 读磁盘：设备向内存写入数据
+  buf0->reserved = 0; // 保留字段，必须设置为0
+  buf0->sector = sector; // 设置要操作的起始扇区号
 
   // 第一个描述符：请求头
-  disk.desc[idx[0]].addr = (uint64)buf0;
-  disk.desc[idx[0]].len = sizeof(struct virtio_blk_req);
-  disk.desc[idx[0]].flags = VRING_DESC_F_NEXT;
-  disk.desc[idx[0]].next = idx[1];
+  disk.desc[idx[0]].addr = (uint64)buf0; // 设置描述符地址为请求头缓冲区
+  disk.desc[idx[0]].len = sizeof(struct virtio_blk_req); // 设置描述符长度为请求头大小
+  disk.desc[idx[0]].flags = VRING_DESC_F_NEXT; // 设置NEXT标志，表示有下一个描述符
+  disk.desc[idx[0]].next = idx[1]; // 指向第二个描述符的索引
 
   // 第二个描述符：数据
-  disk.desc[idx[1]].addr = (uint64)b->data;
-  disk.desc[idx[1]].len = BSIZE;
+  disk.desc[idx[1]].addr = (uint64)b->data; // 设置描述符地址为数据缓冲区
+  disk.desc[idx[1]].len = BSIZE; // 设置描述符长度为一个块的大小
   if (write)
-    disk.desc[idx[1]].flags = 0; // 设备读取b->data
+    disk.desc[idx[1]].flags = 0; // 写操作：设备读取b->data（无WRITE标志）
   else
-    disk.desc[idx[1]].flags = VRING_DESC_F_WRITE; // 设备写入b->data
-  disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT;
-  disk.desc[idx[1]].next = idx[2];
+    disk.desc[idx[1]].flags = VRING_DESC_F_WRITE; // 读操作：设备写入b->data（设置WRITE标志）
+  disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT; // 设置NEXT标志，表示有下一个描述符
+  disk.desc[idx[1]].next = idx[2]; // 指向第三个描述符的索引
 
   // 第三个描述符：状态
-  disk.info[idx[0]].status = 0xff; // 设备成功时写入0
-  disk.desc[idx[2]].addr = (uint64)&disk.info[idx[0]].status;
-  disk.desc[idx[2]].len = 1;
-  disk.desc[idx[2]].flags = VRING_DESC_F_WRITE; // 设备写入状态
-  disk.desc[idx[2]].next = 0;
+  disk.info[idx[0]].status = 0xff; // 初始化状态为0xff，设备成功时写入0
+  disk.desc[idx[2]].addr = (uint64)&disk.info[idx[0]].status; // 设置描述符地址为状态字段
+  disk.desc[idx[2]].len = 1; // 设置描述符长度为1字节
+  disk.desc[idx[2]].flags = VRING_DESC_F_WRITE; // 设置WRITE标志，设备会写入状态
+  disk.desc[idx[2]].next = 0; // 没有下一个描述符，链结束
 
   // 记录struct buf供virtio_disk_intr()使用
-  b->disk = 1;
-  disk.info[idx[0]].b = b;
+  b->disk = 1; // 标记缓冲区正在被磁盘操作
+  disk.info[idx[0]].b = b; // 保存缓冲区指针，供中断处理程序使用
 
   // 告诉设备我们描述符链中的第一个索引
-  disk.avail->ring[disk.avail->idx % NUM] = idx[0];
+  disk.avail->ring[disk.avail->idx % NUM] = idx[0]; // 将第一个描述符索引放入可用环形缓冲区
 
   // 内存屏障，确保之前的写入完成
-  __sync_synchronize();
+  __sync_synchronize(); // 确保所有内存写入操作完成，防止指令重排序
 
   // 告诉设备另一个可用环形缓冲区条目可用
-  disk.avail->idx += 1; // 不是 % NUM ...
+  disk.avail->idx += 1; // 不是 % NUM ... // 增加可用索引，通知设备有新请求
 
   // 内存屏障，确保之前的写入完成
-  __sync_synchronize();
+  __sync_synchronize(); // 再次确保内存写入完成
 
   // 通知设备有新的请求
-  *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // 值是队列号
+  *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // 值是队列号 // 向队列通知寄存器写入0，通知设备处理队列0的请求
 
   // 等待virtio_disk_intr()表示请求已完成
   while (b->disk == 1)
   {
+    // 如果磁盘操作还未完成，让当前进程睡眠等待
     sleep(b, &disk.vdisk_lock);
   }
 
   // 清理
-  disk.info[idx[0]].b = 0;
-  free_chain(idx[0]);
+  disk.info[idx[0]].b = 0; // 清除缓冲区指针
+  free_chain(idx[0]); // 释放整个描述符链
 
   // 释放磁盘锁
-  release(&disk.vdisk_lock);
+  release(&disk.vdisk_lock); // 释放磁盘锁，允许其他进程访问
 }
 
 // 磁盘中断处理程序 ----
