@@ -367,8 +367,10 @@ idup(struct inode *ip) // ip为inode pointer(Index Node 指针)的缩写
 // 如果需要，从磁盘读取 inode
 void ilock(struct inode *ip)
 {
-  struct buf *bp;
-  struct dinode *dip;
+  struct buf *bp;      // bp: Buffer Pointer (缓冲区指针)，指向从磁盘读取的包含目标inode的块的缓存
+                       // 用于临时存储从磁盘读取的块数据，后续通过dip访问该块中的特定inode
+  struct dinode *dip;  // dip: Disk INode Pointer (磁盘索引节点指针)，指向磁盘上inode的内存表示
+                       // 指向从磁盘读取的inode数据，包含文件的元数据（类型、大小、链接数、数据块地址等）
 
   // 检查 inode 是否有效
   if (ip == 0 || ip->ref < 1)

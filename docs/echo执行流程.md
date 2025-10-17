@@ -209,7 +209,7 @@
 
     -   解析完成后，`sys_exec()` 调用 [`kexec()`](../kernel/exec.c#L44) 构建新的用户地址空间。
 
-        
+
 
         -   先读取 ELF 头 [`ELFHDR`](../kernel/exec.c#L49)，校验 `magic` 和程序头数量，避免加载非法文件。
 
@@ -249,7 +249,7 @@
 
                 -   [`argfd()`](../kernel/sysfile.c#L23) 获取 `fd=1` 对应的 `struct file` 指针。
 
-                -   [`filewrite()`](../kernel/file.c#L135) 针对 `FD_INODE` 类型执行日志事务写入，写到 `x` 的 inode。
+                -   [`filewrite()`](../kernel/file.c#L146) 针对 `FD_INODE` 类型执行日志事务写入，写到 `x` 的 inode。
 
                 -   返回写入字节数，供用户态 `write()` 判断是否全部成功。
 

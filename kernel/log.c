@@ -182,7 +182,15 @@ void begin_op(void)
     }
     else if (log.lh.n + (log.outstanding + 1) * MAXOPBLOCKS > LOGBLOCKS)
     {
-      // 当前操作可能会耗尽日志空间，等待提交完成
+      // 检查当前操作是否会耗尽日志空间
+      // log.lh.n: 当前已记录在日志中的块数量（已提交但未写入磁盘的修改）
+      // log.outstanding: 当前正在进行的文件系统系统调用数量
+      // (log.outstanding + 1): 包括当前正在开始的这个新操作
+      // MAXOPBLOCKS: 每个文件系统系统调用最多可能使用的块数
+      // LOGBLOCKS: 日志总共能容纳的块数（日志容量限制）
+      //
+      // 这个条件判断：当前已用空间 + 新操作预计需要的空间 > 总容量
+      // 如果为真，说明日志空间即将耗尽，需要等待现有操作提交完成以释放空间
       sleep(&log, &log.lock);
     }
     else

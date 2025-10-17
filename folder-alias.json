@@ -52,5 +52,8 @@
     },
     "kernel/sysfile.c": {
         "description": "系统文件"
+    },
+    "kernel/log.c": {
+        "description": "日志"
     }
 }
