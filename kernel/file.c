@@ -205,14 +205,21 @@ int filewrite(struct file *f, uint64 addr, int n)
     {
       int n1 = n - i; // n1(Chunk length 本轮写入长度)
       if (n1 > max)
-        n1 = max;     // 限制单次写入长度不超过日志事务最大限制
+        n1 = max; // 限制单次写入长度不超过日志事务最大限制
 
-      begin_op();                                           // 为每个分块写入开启日志事务
-      ilock(f->ip);                                         // 锁住 inode，保证写入原子
-      if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0) // writei 返回写入的字节数
-        f->off += r;                                        // 只有成功时才更新文件偏移
-      iunlock(f->ip);                                       // 解锁 inode
-      end_op();                                             // 提交此次日志事务
+      begin_op();   // 为每个分块写入开启日志事务
+      ilock(f->ip); // 锁住 inode，保证写入原子
+      // f->ip: 文件对应的索引节点指针
+      // 1: 标志位，表示写入操作
+      // addr + i: 用户缓冲区当前写入位置的地址
+      // f->off: 文件当前偏移量，从该位置开始写入
+      // n1: 本次要写入的字节数
+      // 返回值 r: 实际写入的字节数，大于0表示成功
+      if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0) // writei(Write Inode 写入索引节点) 函数调用：将用户数据写入文件系统
+
+        f->off += r;  // 只有成功时才更新文件偏移
+      iunlock(f->ip); // 解锁 inode
+      end_op();       // 提交此次日志事务
 
       if (r != n1)
       { // 写入长度与期望不一致说明发生错误

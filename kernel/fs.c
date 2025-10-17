@@ -385,6 +385,35 @@ void ilock(struct inode *ip)
     // 读取包含 inode 的块
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     // 获取指向磁盘 inode 的指针
+    // 计算逻辑：
+    // 1. (struct dinode *)bp->data - 将缓冲区数据转换为磁盘 inode 数组指针
+    //    - bp->data 指向磁盘块的数据区域，包含多个连续的 dinode 结构
+    //    - 每个磁盘块包含 IPB 个 inode（BSIZE/sizeof(struct dinode)）
+    //
+    // 2. ip->inum % IPB - 计算目标 inode 在块内的偏移量
+    //    - ip->inum: inode 编号（从1开始，0不使用）
+    //    - IPB: 每个磁盘块包含的 inode 数量（BSIZE/sizeof(struct dinode)）
+    //    - 取模运算确定目标 inode 在当前块中的位置
+    //
+    // 示例：
+    // 假设：
+    // - BSIZE = 1024字节（块大小）
+    // - sizeof(struct dinode) = 64字节（每个 inode 大小）
+    // - IPB = 1024/64 = 16（每块包含16个 inode）
+    // - 目标 inode 编号为 50
+    //
+    // 计算过程：
+    // - 50 % 16 = 2（偏移量，表示第3个 inode，从0开始计数）
+    // - 最终指向 bp->data[2] 处的 dinode 结构
+    //
+    // 内存布局示例：
+    // bp->data[0]   -> inode 0-15（如果存在）
+    // bp->data[1]   -> inode 16-31
+    // bp->data[2]   -> inode 32-47
+    // bp->data[3]   -> inode 48-63
+    // ...
+    // dip 指向目标 inode 的内存表示，包含文件的元数据
+    //（类型、大小、链接数、数据块地址等）
     dip = (struct dinode *)bp->data + ip->inum % IPB;
     // 复制 inode 数据
     ip->type = dip->type;
@@ -681,32 +710,25 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // 如果返回值小于请求的 n，则表示出现了某种错误
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
-  // This helper moves raw bytes into an inode-backed file. It understands both
-  // user-space buffers and kernel-space buffers (controlled by `user_src` flag),
-  // extends the file when necessary, and tags each dirty buffer for inclusion in
-  // the write-ahead log so the caller does not have to perform explicit disk I/O.
+  // 这个辅助函数将原始字节写入 inode 支持的文件。它既理解用户空间缓冲区也理解内核空间缓冲区
+  // （由 `user_src` 标志控制），在必要时扩展文件，并将每个脏缓冲区标记为包含在
+  // 预写日志中，这样调用者就不需要执行显式的磁盘 I/O。
   //
-  // Abbreviation expansion:
-  // - `ip`: inode pointer (index node structure describing on-disk metadata).
-  // - `BSIZE`: block size (bytes per filesystem block).
-  // - `bmap`: block map routine that translates a logical block number into a
-  //   disk sector address, allocating blocks along the way.
-  // - `bp`: buffer pointer that wraps a cached disk block.
+  // 缩写解释：
+  // - `ip`: inode 指针（描述磁盘元数据的索引节点结构）。
+  // - `BSIZE`: 块大小（每个文件系统块的字节数）。
+  // - `bmap`: 块映射例程，将逻辑块号转换为磁盘扇区地址，并在过程中分配块。
+  // - `bp`: 缓冲区指针，包装缓存的磁盘块。
   //
-  // High-level steps:
-  // 1. Validate that the write does not wrap around the address space or exceed
-  //    the per-file `MAXFILE` block limit.
-  // 2. Iterate block by block, using `bmap` (block map) to ensure backing space
-  //    exists.
-  // 3. Bring the block into cache with `bread`, copy bytes from the user or
-  //    kernel source via `either_copyin`, and mark the buffer dirty with
-  //    `log_write` so the log layer captures the change.
-  // 4. Release each buffer, update the inode size when the write extends past
-  //    the previous end-of-file, and persist the inode metadata with `iupdate`
-  //    (inode update).
+  // 高级步骤：
+  // 1. 验证写入不会环绕地址空间或超过每个文件的 `MAXFILE` 块限制。
+  // 2. 逐块迭代，使用 `bmap`（块映射）确保后备存储空间存在。
+  // 3. 使用 `bread` 将块读入缓存，通过 `either_copyin` 从用户或内核源复制字节，
+  //    并使用 `log_write` 将缓冲区标记为脏，以便日志层捕获更改。
+  // 4. 释放每个缓冲区，当写入超过之前的文件末尾时更新 inode 大小，
+  //    并使用 `iupdate`（inode 更新）持久化 inode 元数据。
   //
-  // Return value mirrors the number of bytes successfully copied; any partial
-  // failure truncates the loop and reports the completed prefix.
+  // 返回值反映成功复制的字节数；任何部分失败都会截断循环并报告已完成的字节数前缀。
   uint tot, m;         // tot(Total bytes 累计传输的字节数)、m(Chunk size 本轮处理字节数)
   struct buf *bp;      // bp(Buffer Pointer 缓冲区指针)，指向当前缓存的磁盘块
 

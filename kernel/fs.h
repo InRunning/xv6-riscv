@@ -38,9 +38,44 @@ struct dinode {
 };
 
 // 每块中的i节点数量
+// IPB: Inodes Per Block（每块中的 inode 数量）
+// 计算逻辑：
+// - BSIZE: 磁盘块大小（1024字节）
+// - sizeof(struct dinode): 每个磁盘 inode 结构的大小（64字节）
+// - IPB = BSIZE / sizeof(struct dinode) = 1024 / 64 = 16
+// 表示每个磁盘块可以存储16个 inode
 #define IPB           (BSIZE / sizeof(struct dinode))
 
 // 包含i节点i的块
+//
+// 计算逻辑：
+// 1. (i) / IPB - 计算i节点i所在的块索引
+//    - i: i节点号（从1开始，0不使用）
+//    - IPB: 每个磁盘块包含的i节点数量（BSIZE/sizeof(struct dinode)）
+//    - 除法运算确定i节点i位于哪个磁盘块中
+//
+// 2. + sb.inodestart - 加上i节点区域的起始块号
+//    - sb.inodestart: 超级块中定义的i节点区域在磁盘上的起始块号
+//    - 这个偏移量将相对块索引转换为绝对磁盘块号
+//
+// 示例：
+// 假设：
+// - BSIZE = 1024字节（块大小）
+// - sizeof(struct dinode) = 64字节（每个i节点大小）
+// - IPB = 1024/64 = 16（每块包含16个i节点）
+// - sb.inodestart = 32（i节点区域从磁盘块32开始）
+//
+// 计算i节点号50所在的块：
+// - 50 / 16 = 3（商，表示第4个块，从0开始计数）
+// - 3 + 32 = 35（绝对磁盘块号）
+//
+// 因此，i节点50位于磁盘块35中
+//
+// 使用场景：
+// - 在ialloc()中分配新i节点时
+// - 在iupdate()中更新i节点到磁盘时
+// - 在ilock()中从磁盘读取i节点时
+// - 在ireclaim()中回收孤立i节点时
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 // 每块的位图位数
