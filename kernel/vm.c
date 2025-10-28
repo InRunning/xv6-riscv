@@ -43,7 +43,7 @@ kvmmake(void)
 {
   pagetable_t kpgtbl;
 
-  // 分配一个页面作为���表的根
+  // 分配一个页面作为页表的根
   kpgtbl = (pagetable_t)kalloc();
   memset(kpgtbl, 0, PGSIZE);
 
@@ -78,7 +78,11 @@ kvmmake(void)
 // 这是一个 `mappages` 的简单包装，主要在启动时使用。
 // @note: 这个函数不刷新TLB，也不启用分页。
 // --------------------------------------------------------------------
-void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
+void kvmmap(pagetable_t kpgtbl,   // 页表根指针，指向要操作的内核页表
+            uint64 va,            // 起始虚拟地址，映射的目标虚拟地址
+            uint64 pa,            // 起始物理地址，映射的源物理地址
+            uint64 sz,            // 映射区域的大小（字节），必须是页对齐的
+            int perm)             // 页表项权限位（PTE_R可读、PTE_W可写、PTE_X可执行）
 {
   if (mappages(kpgtbl, va, sz, pa, perm) != 0)
     panic("kvmmap");

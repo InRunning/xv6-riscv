@@ -735,6 +735,7 @@ void sleep(void *chan, struct spinlock *lk) // chan(Channel 通道指针，用�
   // 切换到调度器
   sched();
 
+  // wakeup(chan) 会唤醒所有在相同 chan 上睡眠的进程，包括当前进程。
   // 当进程被唤醒并重新调度后，代码从这里继续执行。
   // 清理工作：清除睡眠通道。
   p->chan = 0;
